@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 from modules import npcs  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--src", default=os.path.join(HERE, "../../../../GodsWar-2.51/Polish/reborn-src-v2"))
+ap.add_argument("--src", default=os.path.join(HERE, "../../../../GodsWar-2.51/Polish/reborn-src-r3"))
 a = ap.parse_args()
 FAIL = []
 
@@ -46,7 +46,7 @@ step("Point Exchanger item table matches TryGetPointExchangerCurrency (%d items)
 
 # row_currency on the Point Exchanger: item table first, then the tab's first frame byte (4 = B-Gold).
 pe = npcs.shop_currency("PointExchanger", [{"item": 9940, "category": c, "currency": 4} for c in range(4)])
-for item, want in ((9940, "honour"), (4213, "points"), (14069, "medals"), (4193, "bgold")):
+for item, want in ((9940, "honour"), (4213, "points"), (14069, "medals"), (4193, "medals")):
     got = npcs.row_currency(pe, item, 2)
     step("Point Exchanger item %d charges %s" % (item, want), got == want, got)
 

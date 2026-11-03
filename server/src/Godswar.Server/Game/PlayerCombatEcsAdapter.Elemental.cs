@@ -17,6 +17,7 @@ internal sealed partial class PlayerCombatEcsAdapter
         PlayerCombatDamageIntentEvent[] damageIntents)
     {
         if (damageIntents.Length == 0 ||
+            SigilFixedDamage.TryGet(request.Skill, out _) || // PROF (q06): fixed damage is not adjusted
             !_world!.Has<PlayerCombatReservationComponent>(_player))
         {
             return;

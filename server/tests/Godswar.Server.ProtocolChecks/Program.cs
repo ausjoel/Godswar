@@ -89,6 +89,9 @@ internal static partial class Program
             ("Persistent monster-kill progression", CheckMonsterKillProgressionAsync),
             (ServerRatesChecks.CheckName, ServerRatesChecks.RunAsync), // RATES
             (LootRollProfileChecks.CheckName, LootRollProfileChecks.RunAsync), // ATTR
+            (ProfessionEventDropChecks.EventDropCheckName, ProfessionEventDropChecks.RunEventDropsAsync), // PROF q07
+            (ProfessionEventDropChecks.BlueprintCheckName, ProfessionEventDropChecks.RunBlueprintsAsync), // PROF q09
+            (ProfessionEventDropChecks.SigilCheckName, ProfessionEventDropChecks.RunSigilAsync), // PROF q06
             (ServerNextChecks.PotionCheckName, ServerNextChecks.RunPotionsAsync), // NEXT potions
             (ServerNextChecks.ExpiryCheckName, ServerNextChecks.RunExpiryAsync), // NEXT expiry
             (ServerNextChecks.MedalCheckName, ServerNextChecks.RunMedalAsync), // NEXT b06
@@ -136,6 +139,9 @@ internal static partial class Program
             ("Priest Gaia Care and Mana Shield statuses", CheckPriestDefensiveStatusCompositionAsync),
             ("Skill cast target and impact layout", CheckSkillCastTargetAndImpactAsync),
             ("Native skill-cast interruption packet", SkillCastInterruptPacketChecks.RunAsync),
+            (
+                MonsterAttackPresentationChecks.CheckName,
+                MonsterAttackPresentationChecks.RunAsync),
             (
                 "Skill cast lifecycle cancellation races",
                 BackhaulSkillHandlerChecks.RunCastingLifecycleRacesAsync),

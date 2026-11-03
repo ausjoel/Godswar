@@ -20,10 +20,12 @@ internal static partial class PacketBuilder
             checked((ushort)packet.Length));
         BinaryPrimitives.WriteUInt16LittleEndian(
             packet.AsSpan(2),
-            Opcodes.RepetitionNotice);
-        // The stock 10216 receiver treats values 0..3 as repetition states.
-        // Larger values at +8 are formatted as ERROR_%0.4x and appended to
-        // the native left-side message log. The +4 field is ignored there.
+            Opcodes.RepetitionQueueState);
+        // 10222 (_MSG_REPETITION_CODE, Origin 0x4BE935): +8 values 0..3 are
+        // queue results; larger values are formatted as ERROR_%0.4x and
+        // appended to the message log. Do NOT use 10216: its receiver
+        // (0x4BEB5C) opens the 60-second instance Enter window ("Labyrinth of
+        // Minos") unconditionally and overwrites the pending scene id.
         BinaryPrimitives.WriteInt32LittleEndian(
             packet.AsSpan(8),
             errorCode);

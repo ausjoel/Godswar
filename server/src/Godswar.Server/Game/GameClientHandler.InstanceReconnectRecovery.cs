@@ -24,6 +24,11 @@ internal sealed partial class GameClientHandler
 
         var savedMap = _character.CurrentMap;
         ReviveTrace.Log($"PREPARE-RECONNECT savedMap={savedMap}");
+        if (TryRecoverPansLabyrinthLogin())
+        {
+            return;
+        }
+
         if (!DynamicDungeonContentMapPolicy.IsDynamicDungeonMap(savedMap))
         {
             ReviveTrace.Log("PREPARE-RECONNECT no-recovery");

@@ -265,6 +265,12 @@ internal sealed partial class GameClientHandler
         // registry: the in-map actors own no dialogue table at all, and the
         // capital Event Transporter's 诅咒之地二 entry is a move rather than a
         // page, so its other entries stay with EventTransporterDialogue below.
+        // Pan's Labyrinth (gated): the Event Transporter's 218 and the map-40 actors.
+        if (await TryHandlePansLabyrinthActionAsync(npc, dialogIndex, subId, cancellationToken))
+        {
+            return;
+        }
+
         if (CursedLandTransportProtocol.IsInMapTransporter(npc.NpcKey))
         {
             await HandleCursedLandInMapActionAsync(

@@ -4,6 +4,7 @@ using Godswar.Server.Application.Realms;
 using Godswar.Server.Application.Rewards;
 using Godswar.Server.Application.World;
 using Godswar.Server.Application.World.Content;
+using Godswar.Server.Domain.World.Content;
 using Godswar.Server.Application.Warehouse;
 using Godswar.Server.Application.WorldInstances;
 using Godswar.Server.Infrastructure;
@@ -107,6 +108,15 @@ internal sealed class ServerRuntimeBootstrapContext
         Console.WriteLine(
             $"[gm-npc] loaded GM placements={gmNpcs.Spawns.Count} " +
             $"dialogues={gmNpcs.Dialogues.Count}");
+        foreach (var missing in NorthQuestGiverPolicy.MissingGivers(gmNpcs))
+        {
+            // NORTH-GIVERS-2026-11: the north quests are on but a giver row is not
+            // loaded, so its quests can be neither offered nor handed in.
+            Console.Error.WriteLine(
+                $"[quest] WARNING north quests are on but giver {missing.NpcKey} " +
+                $"({missing.Map}) has no enabled gm_npc_spawns row on map " +
+                $"{NorthQuestGivers.MapId}: apply giver/sql/04-north-givers.sql");
+        }
         return new(
             options,
             world,

@@ -79,7 +79,11 @@ internal sealed class GmNpcOverrideSnapshot
                 $"supported maximum of {MaximumSpawns}.");
         }
 
-        var keys = new HashSet<string>(StringComparer.Ordinal);
+        // NPC-PLACEMENT-V2 (2026-11-03): a key is unique per map, not per table. Every
+        // runtime consumer looks a GM npc up inside one map (SpawnsFor(map) + key), and
+        // the service gates match (npc_key, interaction id), so the same capital service
+        // npc (e.g. Athens_025 at 5165) may stand on several north maps.
+        var keys = new HashSet<(short, string)>();
         var placements = new HashSet<(short, uint)>();
         foreach (var spawn in spawns)
         {
@@ -90,12 +94,12 @@ internal sealed class GmNpcOverrideSnapshot
                 !float.IsFinite(spawn.X) ||
                 !float.IsFinite(spawn.Z) ||
                 !float.IsFinite(spawn.Facing) ||
-                !keys.Add(spawn.NpcKey) ||
+                !keys.Add((spawn.MapId, spawn.NpcKey)) ||
                 !placements.Add((spawn.MapId, spawn.ObjectId)))
             {
                 throw new InvalidDataException(
                     $"The GM NPC placement '{spawn.Name}' is malformed or " +
-                    "duplicates another row's key or map+object id.");
+                    "duplicates another row's map+key or map+object id.");
             }
         }
 

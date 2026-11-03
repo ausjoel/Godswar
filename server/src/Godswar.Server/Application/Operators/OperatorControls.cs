@@ -120,6 +120,20 @@ internal interface IOperatorStore
         short slot,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// PROF (q09): takes the materials out of the bag and adds the product, in one transaction. When anything is
+    /// missing or there is no room, nothing changes. A failed odds roll passes productCount 0 (materials kept).
+    /// </summary>
+    Task<OperatorItemResult> CraftAsync(
+        int characterId,
+        IReadOnlyList<(uint ItemId, int Count)> materials,
+        uint productId,
+        int productCount,
+        short productStackCap,
+        short bound,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new OperatorItemResult(OperatorItemOutcome.Refused, "this store cannot craft"));
+
     Task<OperatorItemResult> MoveBagItemAsync(
         int characterId,
         short fromSlot,

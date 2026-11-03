@@ -21,13 +21,13 @@ internal static class SkillCastInterruptPacketChecks
             PacketBuilder.LocalizedError(
                     NativeErrorCodes.InsufficientMana)
                 .SequenceEqual(Convert.FromHexString(
-                    "0C00E827000000006C000000")),
+                    "0C00EE27000000006C000000")),
             "insufficient MP uses native ERROR_006C left-log notice");
         Check.True(
             PacketBuilder.LocalizedError(
                     NativeErrorCodes.SkillNotReady)
                 .SequenceEqual(Convert.FromHexString(
-                    "0C00E827000000006D000000")),
+                    "0C00EE27000000006D000000")),
             "cooldown rejection uses native ERROR_006D left-log notice");
 
         return Task.CompletedTask;

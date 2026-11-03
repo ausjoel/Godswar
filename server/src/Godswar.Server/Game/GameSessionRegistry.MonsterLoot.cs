@@ -181,7 +181,8 @@ internal sealed partial class GameSessionRegistry
 
         var rolled = lootContent.RollLoot(
             lootKey,
-            deathEventId);
+            deathEventId,
+            diedAt); // EVENT DROPS (q07)
         var key = new MonsterLootRuntimeKey(
             context.WorldInstanceId,
             damage.ObjectId);

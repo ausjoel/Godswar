@@ -467,6 +467,11 @@ internal sealed partial class GameClientHandler
         [
             .. _registry.AddWonderlandInstanceNpcs(_session, npcDefinitions)
         ];
+        // Pan's Labyrinth (gated): its eleven generated actors on map 40.
+        npcDefinitions =
+        [
+            .. PansLabyrinthProtocol.AddNpcs(_character.CurrentMap, npcDefinitions)
+        ];
         if (npcDefinitions.Count != beforeInstanceNpcs)
         {
             Console.WriteLine(

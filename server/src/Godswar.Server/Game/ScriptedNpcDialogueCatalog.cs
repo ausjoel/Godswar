@@ -515,7 +515,9 @@ internal sealed partial class GameClientHandler
                 dialogue,
                 dialogIndex,
                 selection,
-                dialogue.OpeningMenu,
+                // Pan's Labyrinth (gated) appends its 218 button at send time.
+                Godswar.Server.Domain.World.Content.PansLabyrinthProtocol.WithEntryButton(
+                    npc.NpcKey, dialogIndex, dialogue.OpeningMenu),
                 cancellationToken);
             return;
         }

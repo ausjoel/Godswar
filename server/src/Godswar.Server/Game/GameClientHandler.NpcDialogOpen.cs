@@ -89,6 +89,12 @@ internal sealed partial class GameClientHandler
         // manager dialogue is used. Preserve only an access lease that was
         // already issued by the normal Warehouse NPC; the manager never
         // grants one. Every unrelated NPC click still invalidates the lease.
+        // Pan's Labyrinth (gated): the map-40 actors carry no published route.
+        if (await TryHandlePansLabyrinthNpcOpenAsync(npc, cancellationToken))
+        {
+            return;
+        }
+
         if (!WarehouseNpcProtocol.IsManagerEndpoint(
                 npc.NpcKey,
                 npc.InteractionId))

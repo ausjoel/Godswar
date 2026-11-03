@@ -28,9 +28,11 @@ internal sealed partial class GameSessionRegistry
         var monster = attack.Monster;
         var target = targetContext.Character;
         var worldTargetObjectId = targetContext.ObjectId;
-        var impactSkillId = ResolveMedusaMonsterImpactSkillId(
-            attack,
-            transaction);
+        var impactSkillId = ResolveMonsterPresentationImpactSkillId(
+            monster.Definition.TemplateKey,
+            ResolveMedusaMonsterImpactSkillId(
+                attack,
+                transaction));
         var lethalVitalsRevision = killed
             ? decision.AfterVitalsRevision
             : (long?)null;
@@ -342,6 +344,18 @@ internal sealed partial class GameSessionRegistry
             }
         }
     }
+
+    // A Medusa effect skill wins; otherwise a template listed in
+    // MonsterAttackPresentationTable (casters, archers, breath monsters)
+    // presents its own skill in the first 10046 instead of 2000. The second
+    // 10046 stays 2000 and the 10026 damage is unchanged (visual only).
+    internal static uint ResolveMonsterPresentationImpactSkillId(
+        string templateKey,
+        uint medusaImpactSkillId) =>
+        medusaImpactSkillId == DefaultMonsterImpactSkillId &&
+        MonsterAttackPresentationTable.ImpactSkillId(templateKey) is { } skill
+            ? skill
+            : medusaImpactSkillId;
 
     private void FailClosedMonsterAttackPrefixTarget(
         GameSessionContext target,

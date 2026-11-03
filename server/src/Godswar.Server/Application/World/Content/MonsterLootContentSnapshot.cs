@@ -135,9 +135,14 @@ internal sealed class MonsterLootContentSnapshot
     /// of the same kill yields the same ground items, and it stops at the
     /// table's drop cap.
     /// </summary>
+    /// <param name="rolledAt">
+    /// EVENT DROPS (q07): the kill time checked against public.event_drop_windows; null = now. A rule whose item a
+    /// window names is skipped outside its windows; every other rule rolls exactly as before.
+    /// </param>
     public IReadOnlyList<RolledMonsterLoot> RollLoot(
         string templateKey,
-        Guid deathEventId)
+        Guid deathEventId,
+        DateTimeOffset? rolledAt = null)
     {
         if (deathEventId == Guid.Empty ||
             !_tables.TryGetValue(templateKey, out var table) ||
@@ -160,11 +165,18 @@ internal sealed class MonsterLootContentSnapshot
         Span<byte> input = stackalloc byte[20];
         Span<byte> hash = stackalloc byte[SHA256.HashSizeInBytes];
         deathEventId.TryWriteBytes(input[..16]);
+        var eventWindows = EventDropWindowCatalog.Current; // EVENT DROPS (q07)
+        var at = rolledAt ?? DateTimeOffset.UtcNow;
         foreach (var rule in rules)
         {
             if (rolled.Count >= maximumDrops)
             {
                 break;
+            }
+
+            if (!eventWindows.AllowsDrop(templateKey, rule.ItemId, at))
+            {
+                continue;
             }
 
             BitConverter.TryWriteBytes(input[16..], rule.LootIndex);

@@ -140,10 +140,21 @@ internal static class GmNpcDialoguePolicy
     public static List<NpcSpawnDefinition> BuildPlacements(
         GmNpcOverrideSnapshot snapshot,
         short mapId,
-        IReadOnlyList<NpcSpawnDefinition> published)
+        IReadOnlyList<NpcSpawnDefinition> published,
+        bool log = true)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(published);
+        // NORTH-GIVERS-2026-11: the quest npc lookup replays this per carried quest at
+        // login; only world entry logs the placements.
+        void Log(string line)
+        {
+            if (log)
+            {
+                Console.WriteLine(line);
+            }
+        }
+
         var result = new List<NpcSpawnDefinition>();
         var placements = snapshot.SpawnsFor(mapId);
         if (placements.Count == 0)
@@ -162,7 +173,7 @@ internal static class GmNpcDialoguePolicy
         {
             // NpcSpawnDefinitionEcsHydrator rejects an empty scene key, and that
             // rejection would fail world-object load (map entry) for everyone.
-            Console.WriteLine(
+            Log(
                 $"[npc] GM placements skipped: no scene key for map={mapId} " +
                 $"count={placements.Count}");
             return result;
@@ -177,14 +188,14 @@ internal static class GmNpcDialoguePolicy
             if (!knownTemplates.Contains(placement.TemplateKey) &&
                 OriginClientTemplates.Contains(placement.TemplateKey))
             {
-                Console.WriteLine(
+                Log(
                     $"[npc] GM placement uses an Origin client template not " +
                     $"published on this map map={placement.MapId} " +
                     $"template={placement.TemplateKey} name={placement.Name}");
             }
             else if (!knownTemplates.Contains(placement.TemplateKey))
             {
-                Console.WriteLine(
+                Log(
                     $"[npc] GM placement skipped: template not published on this " +
                     $"map map={placement.MapId} template={placement.TemplateKey} " +
                     $"name={placement.Name}");
@@ -193,7 +204,7 @@ internal static class GmNpcDialoguePolicy
 
             if (!usedObjectIds.Add(placement.ObjectId))
             {
-                Console.WriteLine(
+                Log(
                     $"[npc] GM placement skipped: object id already used " +
                     $"map={placement.MapId} object={placement.ObjectId} " +
                     $"name={placement.Name}");
@@ -213,7 +224,7 @@ internal static class GmNpcDialoguePolicy
                 placement.Facing,
                 Detail10077: [],
                 Detail10080: []));
-            Console.WriteLine(
+            Log(
                 $"[npc] GM placement applied map={placement.MapId} " +
                 $"object={placement.ObjectId} key={placement.NpcKey} " +
                 $"dialogue={placement.DialogueKey ?? "(none)"} " +

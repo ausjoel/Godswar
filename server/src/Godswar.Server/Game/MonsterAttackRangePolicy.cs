@@ -41,9 +41,15 @@ internal static class MonsterAttackRangePolicy
         var isRangedRole = definition.DisplayName.Contains(
             "Archer",
             StringComparison.OrdinalIgnoreCase);
+        // Type 3 (Special) on a melee body (Cursed Zone guards, Darkmist) is
+        // listed as reach=melee in MonsterAttackPresentationTable: those
+        // models only have bite/swing clips, so they must close to melee.
+        var forcedMelee = MonsterAttackPresentationTable.ForcesMeleeReach(
+            definition.TemplateKey);
         var authoredReach =
-            profile.AttackKind != MonsterAttackDamageKind.Physical ||
-            isRangedRole
+            !forcedMelee &&
+            (profile.AttackKind != MonsterAttackDamageKind.Physical ||
+             isRangedRole)
             ? RangedRange
             : MeleeRange;
         // The client stops center-to-center movement at the model's authored

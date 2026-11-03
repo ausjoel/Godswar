@@ -116,12 +116,16 @@ internal sealed partial class PlayerCombatIntentSystem
             admittedCombatRevision,
             skill.SkillId,
             targetOrder);
-        return PlayerCombatRules.ResolveSkillDamage(
+        var resolution = PlayerCombatRules.ResolveSkillDamage(
             CombatCharacterStatsAdapter.FromOffense(offense),
             SnapshotTargetStats(target),
             skill,
             eventId,
             targetOrder);
+        // PROF (q06): Sigil Stones deal their item-text damage when GODSWAR_SIGIL_FIXED_DAMAGE=1.
+        return SigilFixedDamage.TryGet(skill, out var fixedDamage)
+            ? SigilFixedDamage.Apply(resolution, fixedDamage)
+            : resolution;
     }
 
     private static void ReserveResolvedSkill(

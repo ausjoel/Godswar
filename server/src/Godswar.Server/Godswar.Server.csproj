@@ -52,6 +52,9 @@
     <EmbeddedResource
       Include="../../database/postgres/009_monsters.sql"
       LogicalName="Godswar.Server.Infrastructure.DatabaseBaselines.009_monsters.sql" />
+    <EmbeddedResource
+      Include="Game/monster-attack-presentation.csv"
+      LogicalName="Godswar.Server.Game.monster-attack-presentation.csv" />
     </ItemGroup>
 
 </Project>

@@ -141,6 +141,20 @@ internal static class GmNpcDialogueChecks
             () => GmNpcOverrideSnapshot.Create([spawn, spawn], [dialogue]),
             "two placements sharing an npc key are rejected");
 
+        // NPC-PLACEMENT-V2: the same key on two maps is accepted (one capital service
+        // npc copied to several north towns); the same key twice on one map is not.
+        var sameKeyTwoMaps = GmNpcOverrideSnapshot.Create(
+            [spawn, Spawn(objectId: 47_300, templateKey: "Execrativelys3_006") with { MapId = 7 }],
+            [dialogue]);
+        Check.Equal(2, sameKeyTwoMaps.Spawns.Count, "the same npc key on two maps is accepted");
+        Check.Equal(1, sameKeyTwoMaps.SpawnsFor(Map).Count, "each map sees only its own copy");
+        Check.Equal(1, sameKeyTwoMaps.SpawnsFor(7).Count, "and the other map its own");
+        Check.Throws<InvalidDataException>(
+            () => GmNpcOverrideSnapshot.Create(
+                [spawn, Spawn(objectId: 47_301, templateKey: "Execrativelys3_006")],
+                [dialogue]),
+            "the same npc key twice on one map is rejected, even with another object id");
+
         Check.Throws<InvalidDataException>(
             () => GmNpcOverrideSnapshot.Create(
                 [spawn, Spawn(objectId: 47_300, templateKey: "X", npcKey: "gm-probe-2")],

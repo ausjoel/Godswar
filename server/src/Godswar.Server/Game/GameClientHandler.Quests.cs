@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using Godswar.Server.Application.World;
 using Godswar.Server.Application.World.Content;
 using Godswar.Server.Domain.World.Content;
 using Godswar.Server.Networking;
@@ -1156,6 +1157,8 @@ internal sealed partial class GameClientHandler
         StarterQuestChain.Step step,
         DateOnly today,
         bool fromScroll = false) =>
+        // QUEST-RELEASE-2026-11: archived quests are known, never offered.
+        !ArchivedQuests.Contains(step.QuestId) &&
         (HasResolvableNpc(step) || (fromScroll && step.IsQuestScroll)) &&
         IsLevelEligibleFor(character, step) &&
         IsChainUnlocked(character, step) &&
@@ -1435,9 +1438,10 @@ internal sealed partial class GameClientHandler
             // lookup runs the same placement pipeline world entry runs: the
             // captured Athens ids move a few published npcs, and naming the
             // published id would point the client at an object that is not there.
-            var effectiveNpcs = CapturedNpcPlacementPolicy.ApplyToMap(
+            List<NpcSpawnDefinition> compatibleNpcs =
                 [.. mapContent.Npcs
-                    .Select(CapitalNpcServiceProtocol.ApplyCapturedSpawnCompatibility)]);
+                    .Select(CapitalNpcServiceProtocol.ApplyCapturedSpawnCompatibility)];
+            var effectiveNpcs = CapturedNpcPlacementPolicy.ApplyToMap(compatibleNpcs);
             foreach (var npc in effectiveNpcs)
             {
                 if (string.Equals(npc.NpcKey, npcKey, StringComparison.Ordinal))
@@ -1445,12 +1449,46 @@ internal sealed partial class GameClientHandler
                     return npc.InteractionId;
                 }
             }
+
+            // NORTH-GIVERS-2026-11: a giver may be an operator-placed GM npc (the north
+            // quest givers in Mycenae are gm_npc_spawns rows), which published content
+            // does not hold. Same placement pipeline as world entry, so the id is the one
+            // the client is sent there.
+            if (ResolveGmQuestNpcId(sourceMap, npcKey, compatibleNpcs) is var gmNpcId && gmNpcId != 0)
+            {
+                return gmNpcId;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.Error.WriteLine(
                 $"[quest] npc lookup failed character={_character.Name} " +
                 $"key={npcKey} {ex.GetType().Name}: {ex.Message}");
+        }
+
+        return 0u;
+    }
+
+    /// <summary>
+    /// NORTH-GIVERS-2026-11: the interaction id a GM-placed quest npc gets on
+    /// <paramref name="mapId"/>, or 0 when no enabled placement there carries
+    /// <paramref name="npcKey"/> (or the placement is rejected, as at world entry).
+    /// </summary>
+    internal static uint ResolveGmQuestNpcId(
+        short mapId,
+        string npcKey,
+        IReadOnlyList<NpcSpawnDefinition> published)
+    {
+        foreach (var placed in GmNpcDialoguePolicy.BuildPlacements(
+                     GmNpcOverrideCatalog.Current,
+                     mapId,
+                     published,
+                     log: false))
+        {
+            if (string.Equals(placed.NpcKey, npcKey, StringComparison.Ordinal))
+            {
+                return placed.InteractionId;
+            }
         }
 
         return 0u;
@@ -1561,13 +1599,15 @@ internal sealed partial class GameClientHandler
             {
                 Detail10077 = PacketBuilder.QuestMarkerList(
                     spawn.InteractionId,
-                    MergeMarkerEntries(
+                    RankMarkerEntriesForClient(MergeMarkerEntries(
                         ReadMarkerEntries(spawn),
                         acceptable,
-                        given)),
+                        given))),
                 Detail10080 = PacketBuilder.QuestHandInMenu(
                     spawn.InteractionId,
-                    MergeHandInEntries(ReadHandInEntries(spawn), received))
+                    RankHandInEntriesForClient(
+                        MergeHandInEntries(ReadHandInEntries(spawn), received),
+                        _character))
             };
         }
 
@@ -1668,7 +1708,7 @@ internal sealed partial class GameClientHandler
                 available.Contains(step.QuestId) ? 1u : 0u));
         }
 
-        return entries;
+        return RankMarkerEntriesForClient(entries);
     }
 
     /// <summary>The 10080 entries for one npc: every quest it receives.</summary>
@@ -1683,7 +1723,62 @@ internal sealed partial class GameClientHandler
             }
         }
 
-        return entries;
+        return RankHandInEntriesForClient(entries, _character);
+    }
+
+    /// <summary>
+    /// QUEST-RELEASE-2026-11: orders an over-long 10077 list so the client's
+    /// twenty slots keep what the character can take now.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PacketBuilder.QuestMarkerList"/> keeps the first
+    /// <see cref="PacketBuilder.QuestNpcListCapacity"/> entries after putting the
+    /// available ones first. The north giver (Mycenae_All_013) gives 224 quests and a
+    /// level 141-200 character can take 14-38 of them, so the order among the
+    /// available ones decides what is cut: story (main-line) steps first, then the
+    /// highest level, which is the band nearest the character. Lists that already fit
+    /// are returned unchanged.
+    /// </remarks>
+    internal static List<(uint QuestId, uint Available)> RankMarkerEntriesForClient(
+        List<(uint QuestId, uint Available)> entries)
+    {
+        if (entries.Count <= PacketBuilder.QuestNpcListCapacity)
+        {
+            return entries;
+        }
+
+        return entries
+            .Select((entry, index) => (entry, index, step: StarterQuestChain.Find(entry.QuestId)))
+            .OrderByDescending(item => item.entry.Available)
+            .ThenByDescending(item => item.step is { IsMainLine: true })
+            .ThenByDescending(item => item.step?.MinLevel ?? 0)
+            .ThenBy(item => item.index)
+            .Select(item => item.entry)
+            .ToList();
+    }
+
+    /// <summary>
+    /// QUEST-RELEASE-2026-11: orders an over-long 10080 list so the quests the
+    /// character carries are inside the client's twenty slots.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PacketBuilder.QuestHandInMenu"/> keeps the first twenty ids, which
+    /// for the north giver would be the first twenty of its 224 quests whatever the
+    /// character carries. A character carries at most
+    /// <see cref="MaximumCarriedQuests"/> (twenty), so every carried quest fits.
+    /// Lists that already fit are returned unchanged.
+    /// </remarks>
+    internal static List<uint> RankHandInEntriesForClient(
+        List<uint> entries,
+        GameCharacter? character)
+    {
+        if (entries.Count <= PacketBuilder.QuestNpcListCapacity || character is null)
+        {
+            return entries;
+        }
+
+        var carried = new HashSet<uint>(character.Quests.Select(quest => quest.QuestId));
+        return entries.OrderByDescending(carried.Contains).ToList();
     }
 
     /// <summary>Reads the 10077 entries a content table carries, if any.</summary>

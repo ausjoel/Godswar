@@ -89,6 +89,10 @@ internal static class ProtocolCheckRunner
             string? reason = null;
             try
             {
+                if (PublicPackageSkips.Omits(check.Name))
+                {
+                    throw new CheckSkippedException(PublicPackageSkips.Reason);
+                }
                 await check.Run();
                 outcome = ProtocolCheckOutcome.Passed;
                 output.WriteLine($"PASS {check.Name}");

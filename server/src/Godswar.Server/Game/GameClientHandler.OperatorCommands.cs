@@ -26,7 +26,8 @@ internal sealed partial class GameClientHandler
         "/announce", "/kick", "/mute", "/unmute", "/ban", "/unban",
         "/goto", "/leave", "/testrun", "/summon", "/move", "/where", "/instances", "/gm", "/panel", "/**",
         "/god", "/walls", "/speed", "/power", "/armor", "/bufflock", "/petlock", "/powers",
-        "/buff", "/give", "/bag", "/bind", "/dupe", "/itemset", "/commands", "/mall"
+        "/buff", "/give", "/bag", "/bind", "/dupe", "/itemset", "/commands", "/mall",
+        .. (ProfessionBlueprintCatalog.Enabled ? new[] { "/craft" } : Array.Empty<string>()) // PROF (q09): GODSWAR_PROFESSIONS=1 only
     ];
 
     private bool _operatorMuteLoaded;
@@ -93,6 +94,7 @@ internal sealed partial class GameClientHandler
                 "/buff" => await OperatorBuffAsync(args, cancellationToken),
                 "/give" => await OperatorGiveAsync(args, cancellationToken),
                 "/mall" => await OperatorMallAsync(args, cancellationToken),
+                "/craft" => await OperatorCraftAsync(args, cancellationToken), // PROF (q09)
                 "/bag" => await OperatorBagAsync(args, cancellationToken),
                 "/bind" => await OperatorItemFieldAsync(word, args, cancellationToken),
                 "/itemset" => await OperatorItemFieldAsync(word, args, cancellationToken),

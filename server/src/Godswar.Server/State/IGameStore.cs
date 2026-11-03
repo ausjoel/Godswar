@@ -28,6 +28,21 @@ internal interface IGameStore : IAsyncDisposable
         IReadOnlyList<CharacterQuest> after, uint newQuestId = 0,
         CancellationToken cancellationToken = default) => Task.FromResult(false);
 
+    // Pan's Labyrinth (gated, GODSWAR_PAN_LABYRINTH=1); see PostgresGameStore.PansLabyrinth.cs.
+    Task<PansLabyrinthEntryResult> OpenPansLabyrinthEntryAsync(int accountId, int characterId, int slot,
+        uint letterItemId, int expectedStack, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new PansLabyrinthEntryResult(PansLabyrinthEntryStatus.Unavailable, 0));
+
+    Task MarkPansLabyrinthEntryRefundedAsync(long entryId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    Task<PansLabyrinthClaimResult> ClaimPansLabyrinthServantAsync(int characterId, int servant,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new PansLabyrinthClaimResult(PansLabyrinthClaimStatus.Unavailable, 0));
+
+    Task UnclaimPansLabyrinthServantAsync(int characterId, int servant,
+        CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     Task EnsureSeedDataAsync(CancellationToken cancellationToken = default);
 
     Task SaveCharacterPositionAsync(

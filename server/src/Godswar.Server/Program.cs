@@ -48,6 +48,8 @@ try
     // EXPIRY (b03): real-time item expiry; off unless the migration is applied.
     await Godswar.Server.Infrastructure.Inventory.ItemExpiryRuntime.InitializeAsync(postgres);
     await NpcContentRuntime.InitializeAsync(postgres);
+    // EVENT DROPS (q07): dated holiday/event drop windows; none = stock drops.
+    await Godswar.Server.Infrastructure.Rates.EventDropWindowRuntime.InitializeAsync(postgres);
     await Godswar.Server.Infrastructure.Relations.RelationStore.InitializeAsync(postgres);
     Godswar.Server.Application.Operators.OperatorControls.UsesCharacterGmFlags = options.Game.DeveloperCommands.UseCharacterGmFlags;
     // ROUND2: operator (GM) command store (operator_log); never fails start-up.
@@ -443,6 +445,7 @@ try
         // failing poll keeps the last good rates and never stops the server).
         auxiliaryTasks.Add(ServerRatesRuntime.RunAsync(shutdown.Token));
         auxiliaryTasks.Add(NpcContentRuntime.RunAsync(shutdown.Token));
+        auxiliaryTasks.Add(Godswar.Server.Infrastructure.Rates.EventDropWindowRuntime.RunAsync(shutdown.Token));
         taskSupervisor.SealRegistrations();
 
         await ServerListenerReadiness.WaitAsync(endpointServers,

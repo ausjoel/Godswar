@@ -503,6 +503,152 @@ internal sealed class PostgresOperatorStore : IOperatorStore
         return new(OperatorItemOutcome.Done, detail, 1);
     }
 
+    // PROF (q09): /craft make. Materials come from the lowest slots first; sealed pets are never touched.
+    public async Task<OperatorItemResult> CraftAsync(
+        int characterId,
+        IReadOnlyList<(uint ItemId, int Count)> materials,
+        uint productId,
+        int productCount,
+        short productStackCap,
+        short bound,
+        CancellationToken cancellationToken)
+    {
+        if (materials.Count is < 1 or > 4 || materials.Any(static m => m.Count < 1) ||
+            productCount < 0 || productStackCap < 1 || bound is < 0 or > 1)
+        {
+            return new(OperatorItemOutcome.InvalidValue, "bad recipe");
+        }
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        if (!await LockCharacterAsync(connection, transaction, characterId, cancellationToken))
+        {
+            return new(OperatorItemOutcome.CharacterNotFound, "character not found");
+        }
+
+        var rows = new List<(long Id, short Slot, uint ItemId, int Stack)>();
+        await using (var select = new NpgsqlCommand(
+            """
+            SELECT i.id, i.slot_index, i.prop_id, i.stack
+            FROM public.character_items i
+            WHERE i.user_id = @characterId AND i.item_location = @kitBag AND i.prop_id = ANY(@items)
+              AND NOT EXISTS (SELECT 1 FROM public.sealed_pet_items s WHERE s.item_instance_id = i.id)
+            ORDER BY i.slot_index
+            FOR UPDATE OF i;
+            """,
+            connection,
+            transaction))
+        {
+            select.Parameters.AddWithValue("characterId", characterId);
+            select.Parameters.AddWithValue("kitBag", KitBagLocation);
+            select.Parameters.AddWithValue("items", materials.Select(static m => checked((int)m.ItemId)).ToArray());
+            await using var reader = await select.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add((reader.GetInt64(0), reader.GetInt16(1), checked((uint)reader.GetInt32(2)),
+                    Math.Max(1, (int)reader.GetInt16(3))));
+            }
+        }
+
+        var missing = materials
+            .Select(m => (m.ItemId, Short: m.Count - rows.Where(r => r.ItemId == m.ItemId).Sum(static r => r.Stack)))
+            .Where(static m => m.Short > 0)
+            .ToArray();
+        if (missing.Length > 0)
+        {
+            return new(OperatorItemOutcome.Refused,
+                "missing " + string.Join(", ", missing.Select(static m => $"{m.Short} x {m.ItemId}")));
+        }
+
+        if (productCount == 0)
+        {
+            return new(OperatorItemOutcome.Done, "nothing changed");
+        }
+
+        await using var delete = new NpgsqlCommand(
+            "DELETE FROM public.character_items WHERE id = @id;", connection, transaction);
+        await using var update = new NpgsqlCommand(
+            "UPDATE public.character_items SET stack = @stack, updated_at = now() WHERE id = @id;",
+            connection,
+            transaction);
+        var taken = new List<string>();
+        foreach (var material in materials)
+        {
+            var remaining = material.Count;
+            foreach (var row in rows.Where(r => r.ItemId == material.ItemId))
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                if (row.Stack <= remaining)
+                {
+                    delete.Parameters.Clear();
+                    delete.Parameters.AddWithValue("id", row.Id);
+                    await delete.ExecuteNonQueryAsync(cancellationToken);
+                    remaining -= row.Stack;
+                    taken.Add($"slot {row.Slot} {material.ItemId} x{row.Stack}");
+                }
+                else
+                {
+                    update.Parameters.Clear();
+                    update.Parameters.AddWithValue("id", row.Id);
+                    update.Parameters.AddWithValue("stack", checked((short)(row.Stack - remaining)));
+                    await update.ExecuteNonQueryAsync(cancellationToken);
+                    taken.Add($"slot {row.Slot} {material.ItemId} x{remaining}");
+                    remaining = 0;
+                }
+            }
+        }
+
+        var free = await FreeSlotsAsync(connection, transaction, characterId, cancellationToken);
+        var stacks = (productCount + productStackCap - 1) / productStackCap;
+        if (free.Count < stacks)
+        {
+            // Disposing the transaction without a commit rolls the material removal back.
+            return new(OperatorItemOutcome.NoFreeSlot, $"needs {stacks} free bag slots, {free.Count} free");
+        }
+
+        await using var insert = new NpgsqlCommand(
+            """
+            INSERT INTO public.character_items (
+                user_id, item_location, slot_index, prop_id,
+                item_quality, item_grade, bound, stack, item_exp, holy_suit_code)
+            VALUES (@characterId, @kitBag, @slot, @itemId, 1, 1, @bound, @stack, 0, 0);
+            """,
+            connection,
+            transaction);
+        var left = productCount;
+        var written = new List<short>();
+        foreach (var slot in free)
+        {
+            if (left <= 0)
+            {
+                break;
+            }
+
+            var stack = (short)Math.Min(left, productStackCap);
+            insert.Parameters.Clear();
+            insert.Parameters.AddWithValue("characterId", characterId);
+            insert.Parameters.AddWithValue("kitBag", KitBagLocation);
+            insert.Parameters.AddWithValue("slot", slot);
+            insert.Parameters.AddWithValue("itemId", checked((int)productId));
+            insert.Parameters.AddWithValue("bound", bound);
+            insert.Parameters.AddWithValue("stack", stack);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+            left -= stack;
+            written.Add(slot);
+        }
+
+        await AdvanceInventoryRevisionAsync(connection, transaction, characterId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(
+            OperatorItemOutcome.Done,
+            $"took {string.Join("; ", taken)}; product in slots {string.Join(',', written)}",
+            written.Count);
+    }
+
     public async Task<OperatorItemResult> MoveBagItemAsync(
         int characterId,
         short fromSlot,

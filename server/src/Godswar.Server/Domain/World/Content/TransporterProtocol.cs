@@ -41,7 +41,7 @@ internal static class TransporterProtocol
 
     // Mycenae is the only gateway to the north. The client labels sub-ID 11 "Go to Mycenae" (NF_L0_213).
     public const int MycenaeMenuSubId = 11;
-    public const int MycenaeMinimumLevel = 155; // the admin c10 (2026-11-02): was 130; 6 below the Mycenae V2 band (161-170)
+    public const int MycenaeMinimumLevel = 130; // the admin c01 (2026-11-03): back to the original 130 (c10 had made it 155)
     // Olympia keeps the client's existing label for this sub-ID, "Go to Olympia" (NF_L0_214).
     public const int OlympiaMenuSubId = 1088;
     public const int DelphiMenuSubId = 1089;
