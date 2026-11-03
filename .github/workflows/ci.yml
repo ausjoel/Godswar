@@ -27,6 +27,9 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n setup.sh && ./setup.sh --local --yes --edition reborn
+      - run: |
+          bash -n setup.sh
+          ./setup.sh --local --yes --edition reborn 2>&1 | tee setup.log
+          grep -q "login test passed" setup.log   # the headless login must reach the character screen
       - if: failure()
         run: docker compose --env-file config/godswar.env logs --tail 200

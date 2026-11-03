@@ -116,6 +116,10 @@ if [ -n "$ADMIN_ID" ]; then
   say "Enabling GM commands for the administrator account (id $ADMIN_ID)"
   sed -i.bak -e "s/^GODSWAR_DEVELOPER_COMMANDS_ENABLED=.*/GODSWAR_DEVELOPER_COMMANDS_ENABLED=true/" -e "s/^GODSWAR_DEVELOPER_ACCOUNT_IDS=.*/GODSWAR_DEVELOPER_ACCOUNT_IDS=$ADMIN_ID/" config/godswar.env && rm -f config/godswar.env.bak
   $COMPOSE up -d server
+  sleep 3
+  for _ in $(seq 1 60); do   # the restart recreates the container: wait until it is healthy again
+    case "$($COMPOSE ps --format '{{.Service}} {{.Health}}' 2>/dev/null | tr '\n' ' ')" in *"server healthy"*) break ;; esac; sleep 3
+  done
 fi
 
 # ---- 5. Firewall (VPS) --------------------------------------------------------------------
