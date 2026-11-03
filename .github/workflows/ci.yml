@@ -1,0 +1,32 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  leak-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -I tools/leak-scan.py
+  server-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { global-json-file: server/global.json }
+      - run: dotnet build server/GodswarServer.sln -c Release
+  launcher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: launcher/go.mod }
+      - run: cd launcher && go vet ./... && go test ./...
+  setup-end-to-end:
+    # Runs the real installer on a clean machine: builds the images, loads the database,
+    # creates the admin account and logs in with the headless client test.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n setup.sh && ./setup.sh --local --yes --edition reborn
+      - if: failure()
+        run: docker compose --env-file config/godswar.env logs --tail 200
