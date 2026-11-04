@@ -48,6 +48,21 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
             paid_at timestamptz NULL,
             UNIQUE (character_id, role, partner_id)
         );
+        CREATE TABLE IF NOT EXISTS public.mentor_relation_levels (
+            apprentice_id integer PRIMARY KEY REFERENCES public.mentor_relations(apprentice_id) ON DELETE CASCADE,
+            start_level integer NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS public.mentor_level_awards (
+            apprentice_id integer NOT NULL REFERENCES public.character_base(id) ON DELETE CASCADE,
+            level integer NOT NULL CHECK (level BETWEEN 2 AND 200),
+            master_id integer NOT NULL,
+            binding_gold integer NOT NULL CHECK (binding_gold >= 0),
+            created_at timestamptz NOT NULL DEFAULT now(),
+            paid_at timestamptz NULL,
+            PRIMARY KEY (apprentice_id, level)
+        );
+        CREATE INDEX IF NOT EXISTS mentor_level_awards_owed_idx ON public.mentor_level_awards (master_id) WHERE paid_at IS NULL;
+        COMMENT ON TABLE public.mentor_level_awards IS 'STAGE3 mentor: B-Gold owed to a master per level an apprentice gained (once per apprentice and level).';
         COMMENT ON TABLE public.mentor_relations IS 'ECONOMY mentor: active Master and Apprentice pairs (IGG guide igg-acid=111).';
         COMMENT ON TABLE public.mentor_rewards IS 'ECONOMY mentor: graduation rewards; paid_at NULL = owed, paid at the character''s next packet.';
         """;
@@ -164,7 +179,12 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
         if (await Count("SELECT count(*) FROM public.mentor_lockouts WHERE character_id IN (@m, @a) AND locked_until > now();") > 0)
             return MentorCreateStatus.Locked;
         await using (var insert = new NpgsqlCommand(
-            "INSERT INTO public.mentor_relations (apprentice_id, master_id) VALUES (@a, @m);", connection, transaction))
+            """
+            INSERT INTO public.mentor_relations (apprentice_id, master_id) VALUES (@a, @m);
+            INSERT INTO public.mentor_relation_levels (apprentice_id, start_level)
+            SELECT id, fighter_job_lv FROM public.character_base WHERE id = @a
+            ON CONFLICT (apprentice_id) DO UPDATE SET start_level = EXCLUDED.start_level;
+            """, connection, transaction))
         {
             insert.Parameters.AddWithValue("m", masterId);
             insert.Parameters.AddWithValue("a", apprenticeId);
@@ -245,7 +265,7 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
             INSERT INTO public.mentor_rewards
                 (character_id, role, partner_id, partner_name, experience, talent_points, silver, binding_gold)
             VALUES (@a, 'apprentice', @m, @mn, @ae, @at, @as, @ab),
-                   (@m, 'master', @a, @an, @me, @mt, @ms, 0)
+                   (@m, 'master', @a, @an, @me, @mt, @ms, @mb)
             ON CONFLICT (character_id, role, partner_id) DO NOTHING;
             """, connection, transaction))
         {
@@ -260,7 +280,42 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
             graduate.Parameters.AddWithValue("me", MentorPolicy.MasterReward.Experience);
             graduate.Parameters.AddWithValue("mt", MentorPolicy.MasterReward.TalentPoints);
             graduate.Parameters.AddWithValue("ms", MentorPolicy.MasterReward.Silver);
+            graduate.Parameters.AddWithValue("mb", MentorPolicy.MasterReward.BindingGold);
             await graduate.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return masterId;
+    }
+
+    public async Task<int?> RecordLevelAwardsAsync(int apprenticeId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO public.mentor_relation_levels (apprentice_id, start_level)
+            SELECT r.apprentice_id, a.fighter_job_lv
+            FROM public.mentor_relations r JOIN public.character_base a ON a.id = r.apprentice_id
+            WHERE r.apprentice_id = @a
+            ON CONFLICT (apprentice_id) DO NOTHING;
+            INSERT INTO public.mentor_level_awards (apprentice_id, level, master_id, binding_gold)
+            SELECT r.apprentice_id, g.level, r.master_id, @gold
+            FROM public.mentor_relations r
+            JOIN public.character_base a ON a.id = r.apprentice_id
+            JOIN public.mentor_relation_levels s ON s.apprentice_id = r.apprentice_id
+            CROSS JOIN LATERAL generate_series(s.start_level + 1, LEAST(a.fighter_job_lv, @top)) AS g(level)
+            WHERE r.apprentice_id = @a
+            ON CONFLICT (apprentice_id, level) DO NOTHING
+            RETURNING master_id;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("a", apprenticeId);
+        command.Parameters.AddWithValue("gold", MentorPolicy.MasterLevelBindingGold);
+        command.Parameters.AddWithValue("top", MentorPolicy.GraduationLevel - 1);
+        int? masterId = null;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken)) masterId = reader.GetInt32(0);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -283,6 +338,24 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
             while (await reader.ReadAsync(cancellationToken))
                 rewards.Add(new(reader.GetInt64(0), reader.GetString(1) == "master", reader.GetString(2), reader.GetInt64(3),
                     reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6)));
+        }
+
+        // STAGE3: per-level master awards (B-Gold only).
+        var levelAwards = new List<(int ApprenticeId, int Level)>();
+        await using (var read = new NpgsqlCommand(
+            """
+            SELECT w.apprentice_id, w.level, w.binding_gold, coalesce(a.name, '')
+            FROM public.mentor_level_awards w LEFT JOIN public.character_base a ON a.id = w.apprentice_id
+            WHERE w.master_id = @c AND w.paid_at IS NULL ORDER BY w.apprentice_id, w.level FOR UPDATE OF w;
+            """, connection, transaction))
+        {
+            read.Parameters.AddWithValue("c", characterId);
+            await using var reader = await read.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                levelAwards.Add((reader.GetInt32(0), reader.GetInt32(1)));
+                rewards.Add(new(0, true, reader.GetString(3), 0, 0, 0, reader.GetInt32(2), reader.GetInt32(1)));
+            }
         }
 
         if (rewards.Count == 0) return null;
@@ -316,8 +389,23 @@ internal sealed class PostgresMentorStore(NpgsqlDataSource dataSource) : IMentor
         await using (var paid = new NpgsqlCommand(
             "UPDATE public.mentor_rewards SET paid_at = now() WHERE id = ANY(@ids);", connection, transaction))
         {
-            paid.Parameters.AddWithValue("ids", rewards.Select(reward => reward.Id).ToArray());
+            paid.Parameters.AddWithValue("ids", rewards.Where(reward => !reward.IsLevelAward).Select(reward => reward.Id).ToArray());
             await paid.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (levelAwards.Count > 0)
+        {
+            await using var paidLevels = new NpgsqlCommand(
+                """
+                UPDATE public.mentor_level_awards w SET paid_at = now()
+                FROM unnest(@aids, @levels) AS p(apprentice_id, level)
+                WHERE w.apprentice_id = p.apprentice_id AND w.level = p.level AND w.master_id = @c AND w.paid_at IS NULL;
+                """, connection, transaction);
+            paidLevels.Parameters.AddWithValue("aids", levelAwards.Select(award => award.ApprenticeId).ToArray());
+            paidLevels.Parameters.AddWithValue("levels", levelAwards.Select(award => award.Level).ToArray());
+            paidLevels.Parameters.AddWithValue("c", characterId);
+            if (await paidLevels.ExecuteNonQueryAsync(cancellationToken) != levelAwards.Count)
+                throw new InvalidOperationException("mentor level awards changed during the claim");
         }
 
         await transaction.CommitAsync(cancellationToken);

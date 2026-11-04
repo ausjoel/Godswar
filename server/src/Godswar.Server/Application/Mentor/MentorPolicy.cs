@@ -25,7 +25,13 @@ internal static class MentorPolicy
     public static readonly TimeSpan InvitationLifetime = TimeSpan.FromSeconds(60);
 
     public static readonly MentorRewardValues ApprenticeReward = new(200_000, 50, 20_000, 2_000);
-    public static readonly MentorRewardValues MasterReward = new(100_000, 20, 10_000, 0);
+    // STAGE3 (the admin 2026-11-04): the master is paid in B-Gold for teaching. The guide's Masters Ethics (per teamed
+    // level-up, exchanged for B-Gold; GodsArena table 8,000/25,000/70,000 Ethics -> 1,380/2,300/3,220 B-Gold) has no
+    // numbers, so B-Gold is paid directly: MasterLevelBindingGold for each level an apprentice gains while in the
+    // relationship (levels start+1 .. 49, once per apprentice and level, ever), and 2,000 B-Gold at graduation (the
+    // apprentice's own guide figure). A Lv1 apprentice taught to 50 pays the master 48 x 20 + 2,000 = 2,960 B-Gold.
+    public const int MasterLevelBindingGold = 20;
+    public static readonly MentorRewardValues MasterReward = new(100_000, 20, 10_000, 2_000);
 
     public static bool Enabled { get; } = Environment.GetEnvironmentVariable("GODSWAR_MENTOR") == "1";
 
@@ -60,7 +66,11 @@ internal enum MentorCreateStatus
 }
 
 internal sealed record MentorReward(long Id, bool AsMaster, string PartnerName, long Experience, int TalentPoints, int Silver,
-    int BindingGold);
+    int BindingGold, int AwardLevel = 0)
+{
+    /// <summary>STAGE3: a per-level master award (B-Gold only), not a graduation reward.</summary>
+    public bool IsLevelAward => AwardLevel > 0;
+}
 
 internal sealed record MentorClaim(IReadOnlyList<MentorReward> Rewards, int SilverAfter, int BindingGoldAfter, int TalentPointsAfter);
 
@@ -70,5 +80,8 @@ internal interface IMentorStore
     Task<MentorCreateStatus> CreateAsync(int masterId, int apprenticeId, CancellationToken cancellationToken = default);
     Task<int?> EndAsync(int apprenticeId, int? requiredMasterId, CancellationToken cancellationToken = default);
     Task<int?> GraduateAsync(int apprenticeId, CancellationToken cancellationToken = default);
+    /// <summary>STAGE3: owes the master one award per level the apprentice gained in the relationship; returns the
+    /// master id when a new award was recorded.</summary>
+    Task<int?> RecordLevelAwardsAsync(int apprenticeId, CancellationToken cancellationToken = default);
     Task<MentorClaim?> ClaimRewardsAsync(int characterId, int accountId, CancellationToken cancellationToken = default);
 }

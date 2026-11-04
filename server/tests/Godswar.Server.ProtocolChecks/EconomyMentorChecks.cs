@@ -22,7 +22,8 @@ internal static class EconomyMentorChecks
         Check.Equal(6, MentorPolicy.MaximumApprentices, "at most 6 apprentices");
         Check.Equal(50, MentorPolicy.GraduationLevel, "apprentices graduate at level 50");
         Check.Equal(new MentorRewardValues(200_000, 50, 20_000, 2_000), MentorPolicy.ApprenticeReward, "apprentice reward per guide");
-        Check.Equal(new MentorRewardValues(100_000, 20, 10_000, 0), MentorPolicy.MasterReward, "master reward per guide (no B-Gold)");
+        Check.Equal(new MentorRewardValues(100_000, 20, 10_000, 2_000), MentorPolicy.MasterReward, "master reward per guide + 2,000 B-Gold (STAGE3, the admin)");
+        Check.Equal(20, MentorPolicy.MasterLevelBindingGold, "master gets 20 B-Gold per apprentice level (STAGE3, the admin)");
 
         var invite = PacketBuilder.MentorInvitation("Master", "Pupil");
         Check.Equal(72, invite.Length, "10234 is 72 bytes");

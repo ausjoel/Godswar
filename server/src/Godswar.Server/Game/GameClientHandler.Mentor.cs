@@ -18,12 +18,13 @@ internal sealed partial class GameClientHandler
     private bool _mentorLoginChecked;
     private bool _mentorBusy;
     private bool? _mentorIsApprentice;
+    private int _mentorSeenLevel = -1;
 
-    /// <summary>Called after any level-up (monster kill, quest, EXP item): a level-50 apprentice graduates.</summary>
+    /// <summary>Called after any level-up (monster kill incl. party share, quest, EXP item): an apprentice owes its
+    /// master a per-level award (STAGE3) and graduates at level 50.</summary>
     private void MarkMentorLevelUp()
     {
-        if (!MentorPolicy.Enabled || _mentorBusy || _character is null ||
-            _character.Level < MentorPolicy.GraduationLevel || _mentorIsApprentice == false)
+        if (!MentorPolicy.Enabled || _mentorBusy || _character is null || _mentorIsApprentice == false)
         {
             return;
         }
@@ -43,7 +44,9 @@ internal sealed partial class GameClientHandler
         {
             // Every mentor frame (the Friends window sends one each time it opens) also re-checks graduation, so a
             // level gained on a path that does not mark the character due (GM /level) is still picked up.
+            // STAGE3: any level change since the last upkeep (a path that did not mark the character due) also runs it.
             if (!_mentorLoginChecked || _registry.TakeMentorDue(_character.Id) ||
+                (_mentorIsApprentice != false && _mentorSeenLevel >= 0 && _mentorSeenLevel != _character.Level) ||
                 (isMentorFrame && _character.Level >= MentorPolicy.GraduationLevel && _mentorIsApprentice != false))
             {
                 await RunMentorUpkeepAsync(store, cancellationToken);
@@ -78,8 +81,17 @@ internal sealed partial class GameClientHandler
 
         _mentorLoginChecked = true;
         _mentorBusy = true;
+        _mentorSeenLevel = character.Level;
         try
         {
+            // STAGE3: per-level master awards first (before a graduation removes the relationship).
+            if (_mentorIsApprentice != false && await store.RecordLevelAwardsAsync(character.Id, cancellationToken) is { } owed)
+            {
+                _mentorIsApprentice = true;
+                _registry.MarkMentorDue(owed);
+                Console.WriteLine($"[mentor] level award owed apprentice={character.Name} level={character.Level} master={owed}");
+            }
+
             if (character.Level >= MentorPolicy.GraduationLevel)
             {
                 var masterId = await store.GraduateAsync(character.Id, cancellationToken);
@@ -112,8 +124,10 @@ internal sealed partial class GameClientHandler
         var experience = (int)Math.Min(int.MaxValue, claim.Rewards.Sum(reward => reward.Experience));
         // Same progression path and frame order as a quest hand-in (GameClientHandler.Quests.cs): the status first,
         // then one 10030 level-up notice per level, so the client never renders a level it was not told about.
-        var progression = await _store.ApplyMonsterKillRewardAsync(_account!.Id, character.Id, experience, 0,
-            cancellationToken);
+        // STAGE3: a claim of per-level B-Gold awards only carries no EXP; skip the progression write then.
+        var progression = experience > 0
+            ? await _store.ApplyMonsterKillRewardAsync(_account!.Id, character.Id, experience, 0, cancellationToken)
+            : null;
         var levelUps = progression?.LevelUps ?? [];
         if (progression is not null)
         {
@@ -150,6 +164,15 @@ internal sealed partial class GameClientHandler
 
         foreach (var reward in claim.Rewards)
         {
+            if (reward.IsLevelAward)
+            {
+                // STAGE3: chat-area line "obtained N B-Gold" only (no pop-up).
+                await SendMentorTipAsync(_session, 15, reward.BindingGold, null, cancellationToken);
+                Console.WriteLine($"[mentor] level award paid master={character.Name} apprentice={reward.PartnerName} " +
+                    $"level={reward.AwardLevel} bgold={reward.BindingGold}");
+                continue;
+            }
+
             await SendMentorTipAsync(_session, reward.AsMaster ? 9 : 10, 0, reward.PartnerName, cancellationToken);
             await SendMentorTipAsync(_session, 11, (int)Math.Min(int.MaxValue, reward.Experience), null, cancellationToken);
             await SendMentorTipAsync(_session, 12, reward.TalentPoints, null, cancellationToken);
