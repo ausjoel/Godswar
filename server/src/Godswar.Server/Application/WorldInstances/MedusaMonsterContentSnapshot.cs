@@ -105,9 +105,8 @@ internal sealed class MedusaMonsterContentSnapshot
             BitConverter.TryWriteBytes(input[16..], rule.LootIndex);
             SHA256.HashData(input, hash);
             var chanceRoll = BitConverter.ToUInt32(hash) % 10_000;
-            if (chanceRoll >= rates.MultiplyBasisPoints(
-                    Godswar.Server.Application.Rates.ServerRateKeys.DropChance,
-                    rule.ChanceBasisPoints))
+            if (chanceRoll >= Godswar.Server.Application.World.Content.LootFlatChanceItems.ThresholdBasisPoints( // GUILDSTONE
+                    rates, rule.ItemId, rule.ChanceBasisPoints))
             {
                 continue;
             }

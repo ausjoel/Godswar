@@ -41,6 +41,8 @@ internal sealed partial class GameClientHandler
             dailyLimit, party.Members, DateTimeOffset.UtcNow, reservationId),
         InstanceCallerEntryKind.HarborAttack => _registry.TryStartHarborAttackEncounter(instanceId,
             dailyLimit, party.Members, DateTimeOffset.UtcNow, reservationId),
+        InstanceCallerEntryKind.TrainingGround => _registry.TryStartTrainingGroundEncounter(instanceId,
+            dailyLimit, party.Members, DateTimeOffset.UtcNow, reservationId), // TRAINING
         _ => false
     };
 }

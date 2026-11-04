@@ -1118,7 +1118,8 @@ internal sealed partial class GameClientHandler
         int experience,
         int talentExperience,
         string reason,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool applyEventRate = true) // EVENTSNPC: false pays an already-rated amount (Exp Pill turn-in) as is
     {
         if (_character is not { } character || experience <= 0 && talentExperience <= 0)
         {
@@ -1127,6 +1128,8 @@ internal sealed partial class GameClientHandler
 
         // RATES: event NPC EXP & Talent multiplier.
         var eventRates = Godswar.Server.Application.Rates.ServerRates.Current;
+        if (applyEventRate) // EVENTSNPC
+        {
         experience = eventRates.Multiply(
             Godswar.Server.Application.Rates.ServerRateKeys.EventExperience,
             experience,
@@ -1135,6 +1138,7 @@ internal sealed partial class GameClientHandler
             Godswar.Server.Application.Rates.ServerRateKeys.EventExperience,
             talentExperience,
             Godswar.Server.Application.Rewards.MonsterDeathRewardCommandEnvelope.MaximumAwardedTalentExperience); // ROUND2
+        } // EVENTSNPC
         LegacyPersistenceMetrics.Record(
             LegacyPersistenceOperation.ApplyMonsterKillReward);
         var progression = await _store.ApplyMonsterKillRewardAsync(

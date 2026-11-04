@@ -20,9 +20,15 @@ internal sealed partial class GameClientHandler
     /// past its count does not stand in for another.
     /// </para>
     /// </remarks>
-    private async Task RecordQuestKillAsync(
+    private Task RecordQuestKillAsync(
         MonsterDamageResult damageResult,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        RecordQuestKillCoreAsync(damageResult, cancellationToken, rollQuestDrops: true);
+
+    private async Task RecordQuestKillCoreAsync(
+        MonsterDamageResult damageResult,
+        CancellationToken cancellationToken,
+        bool rollQuestDrops)
     {
         if (_character is null || _character.Quests.Count == 0 || !damageResult.Killed ||
             damageResult.Monster.Definition.MapId < 0) return;
@@ -51,8 +57,11 @@ internal sealed partial class GameClientHandler
             }
             // Drops continue after the kill quota is full, until the item quota
             // is also full. Each actual death gets one independent 15% roll.
-            RecordQuestCollection(quest, map, monster.Definition.DisplayName,
-                monster.HomeX, monster.HomeZ, Random.Shared.NextDouble, monster.Definition.TemplateKey);
+            // PARTY (r02): a party member's shared kill counts toward kill
+            // quotas only; quest-item drops stay with the killer.
+            if (rollQuestDrops)
+                RecordQuestCollection(quest, map, monster.Definition.DisplayName,
+                    monster.HomeX, monster.HomeZ, Random.Shared.NextDouble, monster.Definition.TemplateKey);
             if (quest.Progress != before[quest.QuestId])
                 changes.Add((quest.QuestId, targetId,
                     !wasMet && AreQuestRequirementsSatisfied(_character, quest)));

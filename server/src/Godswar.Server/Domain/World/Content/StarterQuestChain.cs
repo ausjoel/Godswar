@@ -1001,6 +1001,7 @@ internal static class StarterQuestChain
         new(1301, AthensCamp, "Athens_054", "Athens_054", 0, 0, 0, 0, 200, 120, false, 2, 0, string.Empty, false, 0, false, 1, 1, false, false),
         new(1650, AthensCamp, "Athens_039", "Athens_039", 0, 0, 0, 0, 200, 120, false, 3, 2, string.Empty, false, 0, false, 1, 1, false, false),
         ..NorthQuests.EnabledSteps,
+        ..FirstPetQuest.EnabledSteps, // petcapture
     ];
 
     public static Step? Find(uint questId)

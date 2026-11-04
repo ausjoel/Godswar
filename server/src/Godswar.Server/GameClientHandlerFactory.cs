@@ -39,11 +39,15 @@ internal sealed class GameClientHandlerFactory(
         SecurePhase4AcceptanceFaults? phase4AcceptanceFaults = null,
         LegacyAuthenticationAccess? legacyAuthenticationAccess = null)
     {
+        registry.ConfigureMentor(postgresRuntime?.Mentor); // ECONOMY mentor
         registry.ConfigureMedusaCompletionRewards(
             postgresRuntime?.MedusaCompletionRewards);
         registry.ConfigureAtlantisCompletionRewards(postgresRuntime?.AtlantisCompletionRewards,
             postgresRuntime?.LegacyInstanceDailyEntries);
         registry.ConfigureCharacterTitleSelections(postgresRuntime?.TitleSelections);
+        registry.ConfigureHarborAttackRunLedger(postgresRuntime?.HarborAttackRunLedger); // INSTANCES
+        registry.ConfigureHarborAttackCompletionRewards(postgresRuntime?.HarborAttackRunLedger as Godswar.Server.Application.WorldInstances.IHarborAttackCompletionRewardStore); // BAY2
+        registry.ConfigureTrainingGround(postgresRuntime?.TrainingGroundStore); // TRAINING
         // Wonderland's island titles gate the treasure chests, the final exit
         // and (through settlement) the run's retirement, so the title store is
         // configured together with the two claim stores it authorizes.
@@ -51,6 +55,7 @@ internal sealed class GameClientHandlerFactory(
             postgresRuntime?.WonderlandTitles,
             postgresRuntime?.LegacyInstanceDailyEntries);
         registry.ConfigureWonderlandChests(postgresRuntime?.WonderlandChests);
+        registry.ConfigureWonderlandMedals(postgresRuntime?.WonderlandMedals); // ECONOMY r10
         registry.ConfigureWonderlandBlackmarket(postgresRuntime?.WonderlandBlackmarket);
         return new(
             session,

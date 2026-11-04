@@ -1261,10 +1261,12 @@ internal sealed partial class GameClientHandler
                     buff.Definition,
                     cancellationToken),
                 OperatorInspectBuffAction => await InspectOperatorBuffsAsync(cancellationToken),
+                PlayerTradeReloadAction trade => await ReloadAfterPlayerTradeAsync(trade.Reason, cancellationToken), // TRADE
                 OperatorRemoveBuffAction removal => await RemoveOperatorBuffAsync(removal.Token, cancellationToken),
                 OperatorAdminEditAction adminEdit => await RunOperatorAdminEditAsync(
                     adminEdit,
                     cancellationToken),
+                OperatorMarriageRefreshAction => await ApplyMarriageRefreshAsync(cancellationToken), // MARRIAGE
                 _ => "unknown action"
             };
             Console.WriteLine(

@@ -75,6 +75,9 @@ internal sealed partial class ClientSession
         WasExactEgressOwned(
             TryAdmitExactOutcome(clearPacket, out completion));
 
+    /// <summary>Packets the reliable egress queue can hold at once; an exact batch larger than this is always rejected.</summary>
+    internal int ReliableEgressQueueItems => _options.ReliableEgressQueueItems;
+
     internal bool TryAdmitExactBatch(
         IReadOnlyList<ReadOnlyMemory<byte>> clearPackets,
         out Task completion) =>

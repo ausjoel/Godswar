@@ -469,6 +469,12 @@ internal sealed partial class GameClientHandler
         }
     }
 
+    private static string WithBoundOnEquip(string compactState) =>
+        compactState == "[]"
+            ? compactState
+            : (CompactItemEntry.Parse(compactState) with { Bound = 1 })
+                .ToCompactString();
+
     private void ValidateCommittedEquipmentBagTransferProjection(
         GameCharacter projectedCharacter,
         EquipmentBagTransferExecutionReceipt receipt)
@@ -484,9 +490,12 @@ internal sealed partial class GameClientHandler
             .ToCompactString();
         var valid = receipt.Status switch
         {
+            // Equipping binds the item (bind on equip), so the worn copy
+            // equals the expected bag state with Bound forced to 1.
             EquipmentBagTransferResultStatus.Equipped =>
                 projectedEquipment ==
-                    receipt.ExpectedKitBagCompactItemState &&
+                    WithBoundOnEquip(
+                        receipt.ExpectedKitBagCompactItemState) &&
                 projectedKitBag == "[]",
             EquipmentBagTransferResultStatus.Unequipped =>
                 projectedEquipment == "[]" &&

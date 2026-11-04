@@ -11,7 +11,10 @@ internal enum InstanceCallerEntryKind : byte
 {
     Atlantis = 1,
     Wonderland = 2,
-    HarborAttack = 3
+    HarborAttack = 3,
+    // TRAINING: Training Ground (Trials of Heracles, map 210). 10, not 4, so the
+    // daily-entry kind cannot collide with another builder's next instance.
+    TrainingGround = 10
 }
 
 internal enum InstanceCallerEntryPaymentMode : byte
@@ -51,7 +54,7 @@ internal sealed record InstanceCallerEntryDestination(
 /// keeps the root choice in the request sub-id and appends the difficulty to
 /// the fixed 18-value argument path.
 /// </summary>
-internal static class InstanceCallerProtocol
+internal static partial class InstanceCallerProtocol
 {
     // The client is handed the capture's own id: CapturedNpcPlacementPolicy
     // renumbers Athens' city npcs from the published catalog to the capture, and
@@ -167,6 +170,9 @@ internal static class InstanceCallerProtocol
     /// <summary>Every admitted member must be at least this level.</summary>
     public const int HarborAttackMinimumLevel = 50;
 
+    /// <summary>BAY2 (the admin 2026-11-03, round 2): joinable by level 50-90 (wiki 61-90; IGG gives no cap).</summary>
+    public const int HarborAttackMaximumLevel = 90;
+
     /// <summary>The leader's level at which the run moves to map 209.</summary>
     public const int HarborAttackSecondBandLevel = 70;
 
@@ -235,7 +241,7 @@ internal static class InstanceCallerProtocol
             TargetX: HarborAttackArrivalX,
             TargetZ: HarborAttackArrivalZ,
             MinimumLevel: HarborAttackMinimumLevel,
-            MaximumLevel: int.MaxValue,
+            MaximumLevel: HarborAttackMaximumLevel, // BAY2
             RequiredPartySize: null)
         {
             ClientSceneId = clientSceneId,
@@ -340,6 +346,61 @@ internal static class InstanceCallerProtocol
 
         responseSubIds = [AtlantisLevelResultSubId];
         return true;
+    }
+
+    /// <summary>
+    /// INSTANCES: the answer to a page of a closed instance. Both the index-2 and
+    /// index-3 branches of the client's <c>NpcFunRepetition.lua</c> render any
+    /// SubID of 10000 or more as <c>NF_L0_R117 .. SubID % 10000</c>, which the
+    /// English client prints as "The remaining instances for this activity
+    /// today is 0" - the client's own line, and true while the instance is shut.
+    /// </summary>
+    public const int ClosedInstanceResultSubId = 10000;
+
+    /// <summary>Which closed instance an Instance Caller action belongs to.</summary>
+    internal enum ClosedInstance : byte
+    {
+        None = 0,
+        HarborAttack = 1,
+        TrainingGround = 2
+    }
+
+    /// <summary>
+    /// INSTANCES: whether an action opens or submits a page of an instance whose
+    /// entry switch is off. Covers the root buttons (16 Bay Under Attack, 13
+    /// Training Ground, 17 Trials of Hercules) and the page submissions
+    /// (230, 231), so nothing past this point - no page context, no countdown,
+    /// no daily-entry claim, no teleport - runs for a closed instance.
+    /// </summary>
+    public static ClosedInstance ResolveClosedInstance(
+        int dialogIndex,
+        int subId,
+        IReadOnlyList<int> arguments,
+        bool harborAttackOpen,
+        bool trainingGroundOpen)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        if (dialogIndex != DialogIndex)
+        {
+            return ClosedInstance.None;
+        }
+
+        var firstArgument = arguments.Count > 0 ? arguments[0] : -1;
+        if (!harborAttackOpen &&
+            (subId == HarborAttackRootSubId ||
+             firstArgument == HarborAttackPageSubId))
+        {
+            return ClosedInstance.HarborAttack;
+        }
+
+        if (!trainingGroundOpen &&
+            (subId is WarriorTrialRootSubId or HeraclesTrialRootSubId ||
+             firstArgument == HeraclesTrialPageSubId))
+        {
+            return ClosedInstance.TrainingGround;
+        }
+
+        return ClosedInstance.None;
     }
 
     public static bool IsEndpoint(string npcKey, uint interactionId) =>
@@ -469,7 +530,8 @@ internal static class InstanceCallerProtocol
     public static bool UsesPerMemberEntryWindow(InstanceCallerEntryKind kind) =>
         kind is InstanceCallerEntryKind.HarborAttack or
             InstanceCallerEntryKind.Atlantis or
-            InstanceCallerEntryKind.Wonderland;
+            InstanceCallerEntryKind.Wonderland or
+            InstanceCallerEntryKind.TrainingGround; // TRAINING
 
     /// <summary>
     /// Resolves the instance a client-named invitation refers to from the client
@@ -488,6 +550,7 @@ internal static class InstanceCallerProtocol
                 ResolveHarborAttackDestination(HarborAttackMinimumLevel),
             HarborAttackSecondClientSceneId =>
                 ResolveHarborAttackDestination(HarborAttackSecondBandLevel),
+            TrainingGroundClientSceneId => TrainingGroundDestination, // TRAINING
             _ => null!
         };
         return destination is not null;

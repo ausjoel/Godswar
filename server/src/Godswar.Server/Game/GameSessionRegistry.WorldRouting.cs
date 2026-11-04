@@ -371,8 +371,19 @@ internal sealed partial class GameSessionRegistry
                 : map.InitializeMonsters(
                     definitions,
                     initializedAt ?? DateTimeOffset.UtcNow,
-                    activeWorldBossRespawn).Count);
+                    activeWorldBossRespawn,
+                    MonsterRespawnPolicyForMap(runtime.MapId)).Count);
     }
+
+    /// <summary>
+    /// INSTANCES: Bay Under Attack monsters never respawn inside a run (each run
+    /// is a fresh instance). Every other map keeps the timed respawn it had.
+    /// </summary>
+    internal static MonsterRespawnPolicy MonsterRespawnPolicyForMap(int mapId) =>
+        Godswar.Server.Domain.World.Instances.DynamicDungeonContentMapPolicy
+            .IsHarborAttackMap(mapId)
+            ? MonsterRespawnPolicy.Never
+            : MonsterRespawnPolicy.Timed;
 
     private IReadOnlyList<GameSessionContext>
         SnapshotReadySessions(

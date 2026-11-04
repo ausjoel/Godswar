@@ -35,6 +35,10 @@ internal static class LegacyInstanceCheckCatalog
         // Joining a party must not offer 美杜莎 entry any more.
         (
             InstanceCallerHandlerChecks.MedusaPartyJoinCheckName,
-            InstanceCallerHandlerChecks.RunMedusaPartyJoinAsync)
+            InstanceCallerHandlerChecks.RunMedusaPartyJoinAsync),
+        // Item sweep 2026-11-04: big gift packs disconnected the player (projection > 128-packet egress queue).
+        (
+            InstanceCallerHandlerChecks.WonderlandProjectionChunksCheckName,
+            InstanceCallerHandlerChecks.RunWonderlandProjectionChunksAsync)
     ];
 }

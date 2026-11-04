@@ -270,6 +270,9 @@ internal static class GuildAltarWorshipBonusPolicy
     /// </summary>
     public const double PercentPerStep = MaxPercent / 20.0;
 
+    /// <summary>GUILD: the guide's 1,000 offering points per 1% of the base.</summary>
+    public const double GuidePointsPerPercent = 1_000;
+
     /// <summary>Steps the ceiling is reached in.</summary>
     public const int MaxSteps = (int)(MaxPoints / PointsPerStep);
 
@@ -277,11 +280,31 @@ internal static class GuildAltarWorshipBonusPolicy
     /// The percentage of the altar's base value a balance currently buys, from 0
     /// for an empty altar to the client's 150% ceiling.
     /// </summary>
-    public static double BonusPercent(long points)
+    public static double BonusPercent(long points) =>
+        BonusPercent(points, GuildRateKeys.On(GuildRateKeys.AltarCurve));
+
+    /// <summary>
+    /// GUILD (2026-11-03): <paramref name="guideCurve"/> selects the IGG guide's
+    /// curve (igg-acid=67): "1000 point offerings will increase the relevant
+    /// ability by 1%", "Altar Bonus: Basic bonus X (God Altar Bonus +
+    /// Offering/100000), the upper limit ... is 1.5 times ... the Basic bonus".
+    /// That is linear from the first point and reaches the 150% ceiling at
+    /// 150,000 points; it also agrees with the client's own NF_L0_GH87 example
+    /// ("50000 offering gives 50% of the base"). The God Altar term is 0: the
+    /// guide gives no number for it and the client content carries no worship
+    /// value for building 30 (UNPROVEN, see the guild README). Every balance gets
+    /// at least as much as under the old curve.
+    /// </summary>
+    internal static double BonusPercent(long points, bool guideCurve)
     {
         if (points <= 0)
         {
             return 0;
+        }
+
+        if (guideCurve)
+        {
+            return Math.Min(points / GuidePointsPerPercent, MaxPercent);
         }
 
         var steps = Math.Min(points / PointsPerStep, MaxSteps);

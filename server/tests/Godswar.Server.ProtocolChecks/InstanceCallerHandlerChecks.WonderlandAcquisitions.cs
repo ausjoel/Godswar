@@ -35,6 +35,57 @@ internal static partial class InstanceCallerHandlerChecks
         return Task.CompletedTask;
     }
 
+    // Item sweep 2026-11-04: a 40-reward gift pack (Newbie Gift Bag 3884 style) used to exceed the 128-packet egress
+    // queue in one exact batch and disconnect the player. The chunks must each fit, keep notice/clear pairs together,
+    // keep the final hydration in one chunk, and replay to the same native bag as the unsplit projection.
+    public const string WonderlandProjectionChunksCheckName =
+        "Gift pack and Wonderland reward projections fit the reliable egress queue in chunks (item sweep 2026-11-04)";
+
+    public static Task RunWonderlandProjectionChunksAsync()
+    {
+        CheckWonderlandProjectionChunks();
+        return Task.CompletedTask;
+    }
+
+    private static void CheckWonderlandProjectionChunks()
+    {
+        var before = KitBagSlots.SetSlot(GameDefaults.EmptyKitBag, 30, (CompactItemEntry.Empty with
+            { Id = 3884, Quality = 1, Grade = 1, Stack = 1, Bound = 1 }).ToCompactString());
+        var after = GameDefaults.EmptyKitBag;
+        var rewards = Enumerable.Range(0, 40).Select(i => new WonderlandChestItemReward((uint)(2000 + i), 1, 1)).ToArray();
+        for (var i = 0; i < rewards.Length; i++)
+            after = KitBagSlots.SetSlot(after, i, (CompactItemEntry.Empty with
+                { Id = rewards[i].ItemId, Quality = 1, Grade = 1, Stack = 1, Bound = 1 }).ToCompactString());
+        var character = new GameCharacter { KitBag = after };
+        var packets = GameClientHandler.BuildWonderlandRewardProjection(character, before, rewards);
+        var tail = PacketBuilder.KitBagDetailPages(character).Length + PacketBuilder.KitBagSlotIndexes(character).Length;
+        Check.True(packets.Count > 128, "a 40-reward projection is larger than the 128-packet reliable egress queue");
+        var chunks = GameClientHandler.ChunkWonderlandRewardProjection(packets, 112, tail);
+        Check.True(chunks.Count > 1 && chunks.All(chunk => chunk.Count <= 113),
+            "every admitted chunk fits the egress queue (limit 112, plus at most one leading slot0 clear)");
+        var clear = PacketBuilder.StorageItemKitBagDelete(0);
+        Check.True(chunks.All(chunk => Enumerable.Range(0, chunk.Count).Where(i => ReadOpcode(chunk[i]) == 10185)
+                .All(i => i > 0 && i + 1 < chunk.Count && chunk[i - 1].SequenceEqual(clear) && chunk[i + 1].SequenceEqual(clear))),
+            "each native10185 notice keeps a cleared slot0 on both sides inside its own chunk");
+        Check.True(chunks[^1].Count == tail && chunks[^1].SequenceEqual(packets.Skip(packets.Count - tail)),
+            "the final bag hydration (detail pages and slot indexes) is admitted as one chunk");
+        var flat = chunks.SelectMany(chunk => chunk).ToList();
+        var model = new WonderlandNativeBagModel(0);
+        var unsplit = new WonderlandNativeBagModel(0);
+        foreach (var packet in PacketBuilder.KitBagDetailPages(new GameCharacter { KitBag = before }))
+        {
+            model.Receive(packet);
+            unsplit.Receive(packet);
+        }
+        foreach (var packet in flat) model.Receive(packet);
+        foreach (var packet in packets) unsplit.Receive(packet);
+        Check.True(model.Acquisitions.SequenceEqual(unsplit.Acquisitions) && model.Slots.Count == unsplit.Slots.Count &&
+            unsplit.Slots.All(pair => model.Slots.TryGetValue(pair.Key, out var value) && value == pair.Value),
+            "the chunked projection shows the same notices and converges to the same bag as the unsplit one");
+        Check.True(GameClientHandler.ChunkWonderlandRewardProjection(packets.Take(100).ToArray(), 112, tail).Count == 1,
+            "a projection that fits is still admitted as a single exact batch");
+    }
+
     private static void CheckWonderlandNativeStackMerge(string full)
     {
         var bag = full;

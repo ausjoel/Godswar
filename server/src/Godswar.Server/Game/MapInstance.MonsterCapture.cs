@@ -32,6 +32,17 @@ internal sealed partial class MapInstance
             }
             lock (_monsterRuntimeGate) return TryCaptureMonsterCore(expected, now, out result);
         }
+        // Wild baby pets (petcapture) live on open shared maps too: no instance owner, only their templates.
+        if (Application.WorldInstances.WildPetCapturePolicy.IsWildMap(MapId))
+        {
+            if (!Application.WorldInstances.WildPetCapturePolicy.IsWildPetTemplate(
+                    MapId, expected.Definition.TemplateKey))
+            {
+                result = default!;
+                return false;
+            }
+            lock (_monsterRuntimeGate) return TryCaptureMonsterCore(expected, now, out result);
+        }
         lock (_medusaOwnershipGate)
         {
             if (_medusaInstanceOwner is null)

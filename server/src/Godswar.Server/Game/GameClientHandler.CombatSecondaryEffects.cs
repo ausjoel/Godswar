@@ -302,7 +302,15 @@ internal sealed partial class GameClientHandler
         PreparePveDerivedKillRewardAsync(
             MonsterDamageResult damageResult)
     {
-        var pending = await PrepareMonsterKillRewardAsync(damageResult);
+        // PARTY (r02): plan the party split before the killer's own share is
+        // settled, so the killer's amount is fixed before its durable command.
+        // The members' shares are queued to their own sessions first, so a
+        // failure in the killer's own settlement cannot cost them theirs.
+        var partyShare = PlanPartyKillShare(damageResult);
+        DeliverPartyKillShares(partyShare);
+        var pending = await PrepareMonsterKillRewardAsync(
+            damageResult,
+            partyShare?.Divisor ?? 1);
         return pending is null
             ? null
             : new PreparedPveMonsterKillReward(

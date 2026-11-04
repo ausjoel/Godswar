@@ -69,6 +69,11 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        if (await RefuseLordGuildExitAsync(guild, cancellationToken))
+        {
+            return; // GUILD: guild.lord_rules
+        }
+
         var leaverId = _character.Id;
         var leaverName = _character.Name;
         var remaining = guild.Members
@@ -76,7 +81,13 @@ internal sealed partial class GameClientHandler
             .Select(member => member.CharacterId)
             .ToArray();
 
-        await _guilds.RemoveMemberAsync(leaverId, cancellationToken);
+        if (!await _guilds.RemoveMemberAsync(
+                leaverId, cancellationToken,
+                refuseLord: GuildLordRulesOn))
+        {
+            await RefuseLordGuildExitLateAsync(cancellationToken); // GUILD review fix
+            return;
+        }
         await _guilds.UpdateOnlineCountAsync(
             guild.GuildId,
             remaining.Count(_registry.IsCharacterOnline),

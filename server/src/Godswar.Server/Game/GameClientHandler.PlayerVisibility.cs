@@ -94,6 +94,7 @@ internal sealed partial class GameClientHandler
             player,
             _session,
             cancellationToken);
+        await SendVisibleStallSignAsync(player, cancellationToken); // TRADE
     }
 
     private async Task HandlePlayerDetailRequestAsync(GamePacket request, CancellationToken cancellationToken)

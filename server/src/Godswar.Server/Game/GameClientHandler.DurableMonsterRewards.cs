@@ -16,19 +16,46 @@ internal sealed partial class GameClientHandler
             int awardedExperience,
             int awardedTalentExperience,
             int awardedPetExperience,
-            DateTimeOffset receivedAt)
+            DateTimeOffset receivedAt,
+            bool partyShare = false)
     {
         Action? recordAtlantisKill = null;
         try
         {
-            recordAtlantisKill = _registry.CaptureAtlantisMonsterKill(
-                _session, damageResult);
+            // PARTY (r02): a party member's share never scores the encounter;
+            // the killer's own settlement already did.
+            recordAtlantisKill = partyShare
+                ? null
+                : _registry.CaptureAtlantisMonsterKill(
+                    _session, damageResult);
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine(
                 $"[atlantis] death capture failed monster={damageResult.ObjectId}: {ex.Message}");
         }
+
+        // INSTANCES: Bay Under Attack kills (team score, Christina ends the run)
+        // are recorded at the same committed-settlement point. Null elsewhere.
+        try
+        {
+            var recordHarborKill = _registry.CaptureHarborAttackMonsterKill(
+                _session, damageResult);
+            if (recordHarborKill is not null)
+            {
+                recordAtlantisKill = recordAtlantisKill is null
+                    ? recordHarborKill
+                    : recordAtlantisKill + recordHarborKill;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                $"[harbor] death capture failed monster={damageResult.ObjectId}: {ex.Message}");
+        }
+
+        // TRAINING: Training Ground kills (team score, 300 clears) at the same point.
+        recordAtlantisKill = ChainTrainingGroundKill(recordAtlantisKill, damageResult);
 
         return await MonsterDeathRewardCommitBoundary.ExecuteAsync(
             cancellationToken => SettleMonsterRewardAsync(
@@ -38,7 +65,8 @@ internal sealed partial class GameClientHandler
                 awardedPetExperience,
                 receivedAt,
                 recordAtlantisKill,
-                cancellationToken),
+                cancellationToken,
+                partyShare),
             allowImmediateReplay:
                 _monsterDeathRewardCommands is not null,
             firstFailure =>
@@ -72,8 +100,18 @@ internal sealed partial class GameClientHandler
         int awardedPetExperience,
         DateTimeOffset receivedAt,
         Action? recordAtlantisKill,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool partyShare = false)
     {
+        // PARTY (r02): a party member's share settles under its own death
+        // identity, derived from the monster's runtime instance and the
+        // member's character id, so the global death claim stays the killer's
+        // and each member's share is exactly-once (a replay pays nothing).
+        var rewardRuntimeInstanceId = partyShare && _character is not null
+            ? MonsterDeathRewardCommandEnvelope.DerivePartyShareRuntimeInstanceId(
+                damageResult.Monster.RuntimeInstanceId,
+                _character.Id)
+            : damageResult.Monster.RuntimeInstanceId;
         if (_account is null ||
             _character is null ||
             !damageResult.Killed ||
@@ -86,7 +124,7 @@ internal sealed partial class GameClientHandler
             damageResult.Monster.Definition.MapId !=
                 _character.CurrentMap ||
             !MonsterDeathRewardCommandEnvelope.TryCreateCommand(
-                damageResult.Monster.RuntimeInstanceId,
+                rewardRuntimeInstanceId,
                 _character.CurrentMap,
                 damageResult.ObjectId,
                 mutation.SpawnGeneration,
@@ -163,6 +201,12 @@ internal sealed partial class GameClientHandler
                 execution.Disposition ==
                     MonsterDeathRewardExecutionDisposition.Committed,
                 IsDurable: true);
+            if (partyShare)
+            {
+                // PARTY (r02): pet EXP stays with the killer.
+                return settlement;
+            }
+
             return await AttachPetMonsterExperienceAsync(
                 settlement,
                 awardedPetExperience,
@@ -185,6 +229,8 @@ internal sealed partial class GameClientHandler
             cancellationToken);
         return legacy is null
             ? null
+            : partyShare
+            ? legacy
             : await AttachPetMonsterExperienceAsync(
                 legacy,
                 awardedPetExperience,

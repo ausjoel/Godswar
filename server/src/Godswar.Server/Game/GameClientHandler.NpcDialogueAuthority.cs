@@ -175,6 +175,8 @@ internal sealed partial class GameClientHandler
             ? route.InitialMenuSubIds
                 .Concat(TransporterProtocol.GetExtensionMenu(npc.NpcKey, npc.InteractionId))
                 .ToArray()
+            : route.Behavior == NpcDialogueBehavior.BattlefieldTransporter // ARENA: Parnassus button
+                ? BattlefieldTransporterMenu(route.InitialMenuSubIds)
             : route.InitialMenuSubIds.ToArray();
         await _session.SendAsync(
             PacketBuilder.NpcFunctionActionResponse(

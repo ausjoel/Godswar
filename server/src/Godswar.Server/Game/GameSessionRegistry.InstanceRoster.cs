@@ -63,7 +63,8 @@ internal sealed partial class GameSessionRegistry
         Wonderland = 1,
         Atlantis = 2,
         HarborAttack = 3,
-        Medusa = 4
+        Medusa = 4,
+        TrainingGround = 5 // TRAINING
     }
 
     /// <summary>
@@ -349,6 +350,7 @@ internal sealed partial class GameSessionRegistry
             _medusaLeaderUi.TryGetValue(instanceId, out var medusa)
                 ? medusa.LeaderCharacterId
                 : 0,
+        InstanceRunKind.TrainingGround => TrainingGroundRosterLeader(instanceId), // TRAINING
         _ => 0
     };
 

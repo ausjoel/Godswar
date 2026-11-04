@@ -450,5 +450,7 @@ internal static class CharacterIdentityRuntime
                 "[identity] start-up failed; gender and faction changes unavailable: " +
                 error.Message);
         }
+
+        TitleFortuneControls.Initialize(connectionString); // TITLES
     }
 }

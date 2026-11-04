@@ -453,6 +453,14 @@ internal sealed partial class GameClientHandler
             $"[guild] altar action npc={npc.InteractionId} " +
             $"character={_character.Name} building={buildingType} " +
             $"action={action} selection={selection}");
+        if (GuildRateKeys.On(GuildRateKeys.BuildingRules))
+        {
+            // GUILD: costs, Footstone and rank checks (guild.building_rules).
+            await ApplyBuildingActionWithRulesAsync(
+                npc, dialogIndex, buildingType, selection, action, cancellationToken);
+            return;
+        }
+
         var guild = await _guilds.TryApplyBuildingAsync(
             _character.Id,
             buildingType,

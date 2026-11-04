@@ -89,11 +89,24 @@ internal static class BattlefieldSchedulePolicy
             duration_minutes = (int)EventDuration.TotalMinutes
         }));
 
-    private static IEnumerable<TimeOnly> Starts(
+    // RELEASE: internal so the event board (EVENTSBOARD) shows the same windows, IGG switches included.
+    internal static IEnumerable<TimeOnly> Starts(
         BattlefieldDestinationKind destination,
         DayOfWeek day) =>
         destination switch
         {
+            // BATTLEFIELD2: the IGG guide's Pindus times (acid=123: Wednesday 11:00-11:45, Saturday 21:00-21:45,
+            // Sunday 11:00-11:45). The guide says "server time: GMT-5"; they are read as realm time, like Ni Mini,
+            // and the client's own transporter line NF_L0_Y7002 prints the same clock times with no zone.
+            // battlefield.pindus_igg_times = 0 restores the stock windows below.
+            BattlefieldDestinationKind.Pindus when
+                ServerRates.Current.Absolute(ServerRateKeys.BattlefieldPindusIggTimes) == 1 => day switch
+            {
+                DayOfWeek.Wednesday => [new TimeOnly(11, 0)],
+                DayOfWeek.Saturday => [new TimeOnly(21, 0)],
+                DayOfWeek.Sunday => [new TimeOnly(11, 0)],
+                _ => []
+            },
             BattlefieldDestinationKind.Pindus => day switch
             {
                 DayOfWeek.Wednesday => [new TimeOnly(21, 0)],
@@ -102,6 +115,17 @@ internal static class BattlefieldSchedulePolicy
                     [new TimeOnly(8, 0), new TimeOnly(15, 0)],
                 DayOfWeek.Sunday =>
                     [new TimeOnly(8, 0), new TimeOnly(21, 0)],
+                _ => []
+            },
+            // BATTLEFIELD: the IGG guide's Ni Mini times (acid=182: Fridays 21:45-22:30,
+            // Sundays 19:00-19:45; read as realm time, the guide's own zone is not stated
+            // for Ni Mini). battlefield.nimini_igg_times = 0 restores the stock windows.
+            BattlefieldDestinationKind.NiMiniLower or
+            BattlefieldDestinationKind.NiMiniUpper when
+                ServerRates.Current.Absolute(ServerRateKeys.BattlefieldNiMiniIggTimes) == 1 => day switch
+            {
+                DayOfWeek.Friday => [new TimeOnly(21, 45)],
+                DayOfWeek.Sunday => [new TimeOnly(19, 0)],
                 _ => []
             },
             BattlefieldDestinationKind.NiMiniLower or
@@ -114,6 +138,19 @@ internal static class BattlefieldSchedulePolicy
             },
             _ => []
         };
+
+    /// <summary>
+    /// BATTLEFIELD2: true when Pindus runs exactly the IGG windows the client's NF_L0_Y7002 line prints (IGG times on,
+    /// no editor window, stock 45-minute length and no shift), so the transporter may answer "closed" with that line.
+    /// </summary>
+    public static bool PindusMatchesIggText()
+    {
+        var rates = ServerRates.Current;
+        return rates.Absolute(ServerRateKeys.BattlefieldPindusIggTimes) == 1 &&
+               rates.Absolute(ServerRateKeys.BattlefieldWindowMinutes) == (long)EventDuration.TotalMinutes &&
+               rates.Absolute(ServerRateKeys.BattlefieldShiftHours) == 0 &&
+               !NpcContentOverrides.Current.Events.Windows.ContainsKey(EventContent.Pindus);
+    }
 
     private static bool IsWithin(
         TimeOnly current,

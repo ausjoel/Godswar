@@ -29,6 +29,7 @@ internal sealed partial class GameSessionRegistry
         // 港湾遇袭 owns no monster roster, so its world pass is only the clock,
         // the repetition panel, terminal egress and retirement.
         await AdvanceHarborAttackWorldAsync(now, cancellationToken);
+        await AdvanceTrainingGroundWorldAsync(now, cancellationToken); // TRAINING
         // Member entries confirmed through an Enter window are admitted from here,
         // exactly like a registered party member: the registry pulls the member
         // in, instead of the member's own packet performing the transfer.

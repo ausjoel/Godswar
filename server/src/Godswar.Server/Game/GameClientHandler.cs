@@ -216,7 +216,9 @@ internal sealed partial class GameClientHandler : IClientHandler
             await StopPetOwnerMergeEnergyLifecycleAsync();
             await StopPetCareDecayAsync();
             await StopItemExpiryAsync(); // EXPIRY (b03)
+            await StopAfkRevivalAsync(); // ARENA
             await StopFarmRewardClaimsAsync();
+            await StopPartyKillSharesAsync(); // PARTY (r02)
             UnregisterSkillCastInterruption();
             _registry.UnregisterOperatorSink(_session); // ROUND2
             if (_developerCommands.UseCharacterGmFlags && _character is { } departing)

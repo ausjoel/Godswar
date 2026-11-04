@@ -13,6 +13,9 @@ internal static partial class InstanceCallerHandlerChecks
 
     public static async Task RunHarborAttackAsync()
     {
+        // INSTANCES: the entry switch defaults to closed; this check exercises
+        // the open entry flow.
+        using var open = InstanceEntrySwitchScope.Open();
         await CheckHarborAttackPartyEntryAndAbortVoteAsync();
         await CheckHarborAttackRevivalAsync();
     }

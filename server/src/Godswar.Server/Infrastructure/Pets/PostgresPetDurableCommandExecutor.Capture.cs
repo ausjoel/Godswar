@@ -12,7 +12,7 @@ internal sealed partial class PostgresPetDurableCommandExecutor
     // Wooden, Iron, Silver, Gold tools and the Mysterious Tuck Net. Only the dog context takes the first four.
     private static bool IsCaptureNet(int itemId, PetCaptureContext context) =>
         itemId == MysteriousTuckNetItemId ||
-        (context == PetCaptureContext.LelantineDog && itemId is >= 10080 and <= 10083);
+        ((context is PetCaptureContext.LelantineDog or PetCaptureContext.WildBaby) && itemId is >= 10080 and <= 10083);
     private const uint RockElfEggItemId = 10150;
     private const int KitBagSlotCount = 96;
 
@@ -37,6 +37,8 @@ internal sealed partial class PostgresPetDurableCommandExecutor
                 PetCaptureContext.Medusa => capture.EggItemId == RockElfEggItemId && species.SpeciesId == 1,
                 PetCaptureContext.AtlantisMerman => capture.EggItemId == 10158 && species.SpeciesId == 9,
                 PetCaptureContext.LelantineDog => capture.EggItemId == LelantineDogEggItemId && species.SpeciesId == 10,
+                PetCaptureContext.WildBaby => WildPetCapturePolicy.SpeciesForEgg(capture.EggItemId) is var wild &&
+                    wild != 0 && species.SpeciesId == wild,
                 _ => false
             }))
         {
@@ -49,6 +51,8 @@ internal sealed partial class PostgresPetDurableCommandExecutor
             ? ResolveAtlantisCapturedEggQuality(species.SpeciesId)
             : capture.Context == PetCaptureContext.LelantineDog
             ? ResolveLelantineDogCapturedEggQuality(species.SpeciesId, capture.Difficulty)
+            : capture.Context == PetCaptureContext.WildBaby
+            ? RollWildBabyCapturedEggQuality(species.SpeciesId)
             : await RollCapturedEggQualityAsync(
             connection,
             transaction,
@@ -59,8 +63,11 @@ internal sealed partial class PostgresPetDurableCommandExecutor
 
         // Farm dogs can slip the net: the tool is used up, no egg, the dog runs off (it respawns later).
         // The roll lives in the durable command so a replayed receipt repeats the first outcome.
-        if (capture.Context == PetCaptureContext.LelantineDog &&
-            Random.Shared.NextDouble() >= LelantineFarmDogPolicy.CaptureChance(checked((int)net.PropId)))
+        // Wild baby pets follow the same rule with their own (lower) chances.
+        if ((capture.Context == PetCaptureContext.LelantineDog &&
+             Random.Shared.NextDouble() >= LelantineFarmDogPolicy.CaptureChance(checked((int)net.PropId))) ||
+            (capture.Context == PetCaptureContext.WildBaby &&
+             Random.Shared.NextDouble() >= WildPetCapturePolicy.CaptureChance(checked((int)net.PropId))))
         {
             string? remainingNet = null;
             if (net.Stack == 1)
@@ -214,6 +221,28 @@ internal sealed partial class PostgresPetDurableCommandExecutor
             throw new InvalidDataException("The published Loyal Dog capture aptitude is unavailable.");
         }
         return quality;
+    }
+
+    /// <summary>GENERATED weights from <see cref="WildPetCapturePolicy.AptitudeWeights"/>, limited to the
+    /// aptitudes the species has a native profile for.</summary>
+    private short RollWildBabyCapturedEggQuality(int speciesId)
+    {
+        var usable = WildPetCapturePolicy.AptitudeWeights
+            .Where(weight => _petContent.TryGetAptitude(weight.Aptitude, out _) &&
+                _petContent.TryGetNativeProfile(speciesId, weight.Aptitude, out _))
+            .ToArray();
+        var total = usable.Sum(static weight => weight.BasisPoints);
+        if (total <= 0)
+        {
+            throw new InvalidDataException("No published wild baby pet capture aptitude is available.");
+        }
+        var roll = Random.Shared.Next(total);
+        foreach (var (aptitude, basisPoints) in usable)
+        {
+            if (roll < basisPoints) return aptitude;
+            roll -= basisPoints;
+        }
+        return usable[^1].Aptitude;
     }
 
     private short ResolveAtlantisCapturedEggQuality(int speciesId)

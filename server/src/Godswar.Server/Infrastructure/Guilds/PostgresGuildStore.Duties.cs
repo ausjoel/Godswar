@@ -84,14 +84,55 @@ internal sealed partial class PostgresGuildStore
     /// (<c>consortia_contribute</c>). A character that keeps any of those after
     /// leaving is still, as far as the next reader is concerned, in a guild.
     /// </remarks>
-    public async Task RemoveMemberAsync(
+    /// <param name="refuseLord">
+    /// GUILD review fix: when true (guild.lord_rules on), the removal is refused
+    /// if, under the guild row lock, the member is a Lord (duty 6) with others
+    /// still in the guild - a hand-over that committed after the caller's check.
+    /// </param>
+    /// <returns>False only when <paramref name="refuseLord"/> refused it.</returns>
+    public async Task<bool> RemoveMemberAsync(
         int characterId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool refuseLord = false)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(
             cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(
             cancellationToken);
+
+        // GUILD review fix: take the guild row lock a Lord hand-over takes, so a
+        // leave or kick and a hand-over never interleave.
+        await using (var guildLock = new NpgsqlCommand(
+            """
+            SELECT g.id FROM public.guilds g
+            WHERE g.id = (SELECT guild_id FROM public.guild_members
+                          WHERE character_id = @characterId)
+            FOR UPDATE;
+            """,
+            connection,
+            transaction))
+        {
+            guildLock.Parameters.AddWithValue("characterId", characterId);
+            await guildLock.ExecuteScalarAsync(cancellationToken);
+        }
+
+        if (refuseLord)
+        {
+            await using var lordCheck = new NpgsqlCommand(
+                """
+                SELECT m.duty = 6 AND (SELECT count(*) FROM public.guild_members o
+                                       WHERE o.guild_id = m.guild_id) > 1
+                FROM public.guild_members m
+                WHERE m.character_id = @characterId;
+                """,
+                connection,
+                transaction);
+            lordCheck.Parameters.AddWithValue("characterId", characterId);
+            if (await lordCheck.ExecuteScalarAsync(cancellationToken) is true)
+            {
+                return false; // disposal rolls the transaction back
+            }
+        }
 
         await using (var member = new NpgsqlCommand(
             """
@@ -118,6 +159,7 @@ internal sealed partial class PostgresGuildStore
             contribution: 0,
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     /// <summary>

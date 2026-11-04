@@ -437,6 +437,7 @@ internal sealed partial class GameSessionRegistry
         mapId == DynamicDungeonContentMapPolicy.WonderlandMapId ||
         mapId == DynamicDungeonContentMapPolicy.AtlantisPortalMapId ||
         DynamicDungeonContentMapPolicy.IsHarborAttackMap(mapId) ||
+        mapId == DynamicDungeonContentMapPolicy.TrainingGroundMapId || // TRAINING
         DynamicDungeonContentMapPolicy.IsMedusaMap(mapId);
 
     /// <summary>

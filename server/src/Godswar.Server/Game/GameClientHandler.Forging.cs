@@ -14,6 +14,7 @@ internal sealed partial class GameClientHandler
 {
     private void HandleForgeSelection(GamePacket packet)
     {
+        if (TryHandleForgeCompoundSelection(packet)) return; // FORGEGEMS: tabs 1/2
         if (_account is null ||
             _character is null ||
             !ForgeItemSelectionPacket.TryParse(packet.Payload, out var selection) ||
@@ -133,6 +134,7 @@ internal sealed partial class GameClientHandler
         GamePacket packet,
         CancellationToken cancellationToken)
     {
+        if (await TryHandleForgeCompoundStartAsync(packet, cancellationToken)) return; // FORGEGEMS: tabs 1/2
         if (_account is null ||
             _character is null ||
             !IsOrdinaryForgeStart(packet))
@@ -304,6 +306,7 @@ internal sealed partial class GameClientHandler
         _forgeAccountId = null;
         _forgeCharacterId = null;
         _forgeSelectionStartedTimestamp = 0;
+        ClearForgeCompoundSelection(); // FORGEGEMS
     }
 
     private void EnsureForgeSelectionBatch()

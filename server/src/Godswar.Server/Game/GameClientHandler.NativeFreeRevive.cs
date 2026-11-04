@@ -63,6 +63,9 @@ internal sealed partial class GameClientHandler
             // Other instance maps keep the stock path (their own run rules).
             return false;
         }
+        else if (TryResolveArenaReviveLanding(deathMap, out targetMap, out targetX, out targetZ)) // ARENA
+        {
+        }
         else if (ReviveLandingCatalog.TryResolve(deathMap, out var landing))
         {
             targetMap = landing.MapId;

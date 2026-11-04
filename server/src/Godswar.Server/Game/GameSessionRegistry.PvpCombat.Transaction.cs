@@ -158,8 +158,7 @@ internal sealed partial class GameSessionRegistry
             killCredits.Add(new(
                 target,
                 attacker,
-                _gameplayCatalogs.PvpWorldAuthority
-                    .EvaluateOpposingFaction(
+                EvaluatePlayerPvpAdmission(
                         target.Character,
                         attacker.Character,
                         now)));
@@ -365,8 +364,7 @@ internal sealed partial class GameSessionRegistry
                     target.CharacterId,
                     out var value)
                     ? value
-                    : _gameplayCatalogs.PvpWorldAuthority
-                        .EvaluateOpposingFaction(
+                    : EvaluatePlayerPvpAdmission(
                             source.Character,
                             target.Character,
                             now);

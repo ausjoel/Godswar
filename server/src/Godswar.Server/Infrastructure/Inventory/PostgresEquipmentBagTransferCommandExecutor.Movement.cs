@@ -83,6 +83,11 @@ internal sealed partial class
             UPDATE public.character_items
             SET item_location = @destinationLocation,
                 slot_index = @destinationSlot,
+                -- Bind on equip: an item that has been worn can no longer be
+                -- traded or stalled (both refuse bound <> 0). Location 0 is
+                -- equipment; unequipping keeps the flag.
+                bound = CASE WHEN @destinationLocation = 0 AND bound = 0
+                             THEN 1::smallint ELSE bound END,
                 updated_at = now()
             WHERE id = @itemInstanceId
               AND user_id = @characterId

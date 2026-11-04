@@ -168,6 +168,17 @@ internal sealed partial class PostgresTalentUpgradeCommandExecutor :
             return TalentUpgradeExecutionResult.PreconditionFailed();
         }
 
+        // CLASSCHANGE: scope the command to the character's class-change epoch (read under
+        // the row lock above); epoch 0 keeps the operation id unchanged.
+        operationId = ClassChangeTalentEpoch.Scope(
+            operationId,
+            await ClassChangeTalentEpoch.ReadAsync(
+                connection,
+                transaction,
+                envelope.Subject.CharacterId,
+                _commandTimeoutSeconds,
+                cancellationToken));
+
         var existing = await ReadInboxAsync(
             connection,
             transaction,

@@ -33,7 +33,8 @@ internal sealed partial class GameClientHandler
 
         if (TryHandleAtlantisTermination(repetitionId, repetitionIndex) ||
             TryHandleWonderlandTermination(repetitionId, repetitionIndex) ||
-            TryHandleHarborAttackTermination(repetitionId, repetitionIndex))
+            TryHandleHarborAttackTermination(repetitionId, repetitionIndex) ||
+            TryHandleTrainingGroundTermination(repetitionId, repetitionIndex)) // TRAINING
         {
             return;
         }

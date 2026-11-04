@@ -54,6 +54,9 @@ internal readonly record struct PetCaptureIntent(
             PetCaptureContext.LelantineDog => EggItemId == 10159 &&
                 Difficulty is MedusaEncounterDifficulty.Normal or MedusaEncounterDifficulty.Enhanced or
                     MedusaEncounterDifficulty.Mythic,
+            // Wild baby pets (petcapture): Flower Pixie or Minotaur egg, no difficulty.
+            PetCaptureContext.WildBaby => WildPetCapturePolicy.SpeciesForEgg(EggItemId) != 0 &&
+                Difficulty == MedusaEncounterDifficulty.Normal,
             _ => false
         });
 }
@@ -62,7 +65,8 @@ internal enum PetCaptureContext : byte
 {
     Medusa = 0,
     AtlantisMerman = 1,
-    LelantineDog = 2
+    LelantineDog = 2,
+    WildBaby = 3
 }
 
 /// <summary>
@@ -227,6 +231,7 @@ internal static class PetDurableCommandContract
                 PetCaptureContext.Medusa => 1,
                 PetCaptureContext.AtlantisMerman => 2,
                 PetCaptureContext.LelantineDog => 3,
+                PetCaptureContext.WildBaby => 4,
                 _ => throw new ArgumentOutOfRangeException(nameof(capture))
             };
             captureBytes[(sizeof(ushort) * 2) + 1] =

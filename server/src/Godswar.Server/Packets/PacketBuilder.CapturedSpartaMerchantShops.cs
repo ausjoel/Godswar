@@ -149,11 +149,11 @@ internal static partial class PacketBuilder
         "H4sIAAAAAAACCrXZvUvDQBjH8bvYjkqlCOIoSio4axWEgpvgJugk1Vs6in+Bkzj2T3AWh05ODuLkIE4iWtsa36rG+h5ftljSBIUTO+S+GQKXkM/zLL/nDlJMztq1tBCiIyWbd5GyhfD/uKQUwft2V5/l+3PWzzr6qNuAW0ro7gDU7yDUbxbqdwzqN2/A9aTuLhhwK0ndXTTgrqV1d9qAu9mpu//kTUF5U1DeFJQ3BeVNQXmL1e+SjOZxol3+FJQ/BeVPQflTcfJXDPc/Ge5/xzFz3tOsk3f1OmXIPYXcGuQ6kHsJuVeQW4fcG8i9g1wXcu8htwG5D5D7CLlPkPtrHgfrZ6jOqwF3JSs19w1yPch9h9wPyP2k+s3Ed9dXdbdriHF7IbcfcochdwRyc5A7BbkzkFsQ0TxuPZmH6kRz3wrP4ec2U6cCuWeQewu5J5B7DblVyL2A3BfI/YLcUWj/G4fcScjdgNwJyM1l8HkcrEtQnS3I3YbcXcjdg9wDyD2E3DLkOpBbh9wG5Bag89sy5O5D7hHkOpC7I6J53PoZ4UJ1PMj9BtsqtyRoHgAA";
 
     private static readonly Lazy<byte[]> SpartaPetMerchantCatalog = new(
-        () => ApplySpartaMerchantCurrency(InflateCatalog(
+        () => AppendPetMerchantSteed(ApplySpartaMerchantCurrency(InflateCatalog( // ECONOMY r11: + Greek Steed
             SpartaPetMerchantCatalogGzip,
             expectedLength: 7_784,
             expectedPacketCount: 8,
-            expectedCapturedNpcId: 5_086)));
+            expectedCapturedNpcId: 5_086))));
 
     /// <summary>
     /// Rewrites each captured frame's currency byte to silver.

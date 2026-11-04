@@ -75,6 +75,8 @@ internal sealed partial class GameClientHandler
         if (_goldBoxDial is not null) await SettleGoldBoxDialAsync(packet.Opcode, cancellationToken);
         if (await TryHandlePartyPacketAsync(packet, cancellationToken)) return;
         if (await TryHandleRelationPacketAsync(packet, cancellationToken)) return;
+        if (await TryHandleMentorPacketAsync(packet, cancellationToken)) return; // ECONOMY mentor (off unless GODSWAR_MENTOR=1)
+        if (await TryHandlePlayerTradePacketAsync(packet, cancellationToken)) return; // TRADE
         if (await TryHandlePetCapturePacketAsync(packet, cancellationToken)) return;
 
         switch (packet.Opcode)
@@ -110,6 +112,7 @@ internal sealed partial class GameClientHandler
                 // A recognised developer command is consumed locally and never
                 // reaches a chat channel; everything else is chat, which routes by
                 // the channel the client's own frame carries.
+                if (await TryHandleAfkRevivalCommandAsync(packet, cancellationToken)) break; // ARENA
                 if (!await HandleDeveloperItemCommandAsync(packet, cancellationToken))
                 {
                     await HandleChatAsync(packet, cancellationToken);
@@ -393,6 +396,7 @@ internal sealed partial class GameClientHandler
                 // ahead of the world entry, and the reference only ever sends it in
                 // the middle of play, right behind the kill that finished the quest.
                 await SendLoginQuestProgressAsync(cancellationToken);
+                await SendEventBoardAsync(cancellationToken); // EVENTSBOARD
                 break;
             case Opcodes.GameServerReady:
             case Opcodes.GameServerInfo:

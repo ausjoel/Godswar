@@ -253,6 +253,7 @@ internal static partial class InstanceCallerHandlerChecks
     /// </summary>
     private static async Task CheckHarborRosterStatesAsync()
     {
+        using var open = InstanceEntrySwitchScope.Open(); // INSTANCES
         var daily = new ScriptedLegacyInstanceDailyEntryStore();
         await using var fixture = await CreateAtlantisOpalFixtureAsync(
             daily,

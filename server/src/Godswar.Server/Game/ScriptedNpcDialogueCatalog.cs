@@ -455,6 +455,13 @@ internal sealed partial class GameClientHandler
         int subId,
         CancellationToken cancellationToken)
     {
+        // EVENTSNPC: Lost Book, Marathon and Random Quest Manager; false (old answers) unless switched on.
+        if (dialogues.ContainsKey(dialogIndex) && await TryHandleEventsNpcDialogueAsync(npc, dialogIndex, subId,
+                DialogPath(packet), DialogAmount(packet), EventsNpcWords(packet), cancellationToken))
+        {
+            return;
+        }
+
         var payload = packet.Payload;
         var words = new List<string>();
         // Every word of the request: the typed amounts the dialogue's input boxes
@@ -496,6 +503,7 @@ internal sealed partial class GameClientHandler
             ? System.Buffers.Binary.BinaryPrimitives
                 .ReadInt32LittleEndian(payload.Slice(20, 4))
             : -1;
+        var newestClick = ResolveNpcFunctionSelection(payload); // TITLES
 
         if (await TryHandleIdentityChangeAsync(
                 npc,
@@ -505,6 +513,28 @@ internal sealed partial class GameClientHandler
                 cancellationToken))
         {
             return;
+        }
+
+        // CLASSCHANGE: the Class Shifter's class buttons; off (returns false) unless enabled.
+        if (await TryHandleClassChangeAsync(
+                npc,
+                dialogue,
+                dialogIndex,
+                selection,
+                pageSelection,
+                cancellationToken))
+        {
+            return;
+        }
+
+        if (await TryHandleTitleFortuneAsync(npc, dialogue, dialogIndex, newestClick, cancellationToken)) // TITLES
+        {
+            return;
+        }
+
+        if (await TryHandleMarriageAsync(npc, dialogue, dialogIndex, ReadMarriageWords(packet), cancellationToken))
+        {
+            return; // MARRIAGE: Cupid / Cupid's Shadow / Pan, only while switched on
         }
 
         if (selection < 0)
@@ -522,6 +552,22 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        // BATTLEFIELD: the Battlefield Awarder's claim and statistics clicks (gated by
+        // the battlefield.awarder rate; off = the captured fixed replies below).
+        if (await TryHandleBattlefieldAwarderActionAsync(
+                npc,
+                dialogIndex,
+                DialogPath(packet),
+                cancellationToken) ||
+            await TryHandlePindusSupplyActionAsync(
+                npc,
+                dialogIndex,
+                DialogPath(packet),
+                cancellationToken))
+        {
+            return;
+        }
+
         if (await TryHandleGuildAltarActionAsync(
                 npc,
                 dialogIndex,
@@ -531,6 +577,11 @@ internal sealed partial class GameClientHandler
                 cancellationToken))
         {
             return;
+        }
+
+        if (await TryHandleGuildWelfareAsync(npc, dialogue, dialogIndex, selection, cancellationToken))
+        {
+            return; // GUILD: Member Advisor claims, Quest Supervisor release
         }
 
         // A selection made on the page the last reply opened. The client keeps

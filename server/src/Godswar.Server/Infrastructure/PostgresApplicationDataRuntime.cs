@@ -108,6 +108,7 @@ internal sealed class PostgresApplicationDataRuntime :
         QuestAppraisal = new PostgresQuestAppraisalStore(_dataSource);
         LuckyGodsWish = new PostgresLuckyGodsWishStore(_dataSource);
         ZeusGift = new PostgresZeusGiftStore(_dataSource);
+        Mentor = new Godswar.Server.Infrastructure.Mentor.PostgresMentorStore(_dataSource); // ECONOMY mentor
         Guilds = new PostgresGuildStore(
             _dataSource,
             new PostgresGuildAltarContent(_dataSource));
@@ -274,6 +275,10 @@ internal sealed class PostgresApplicationDataRuntime :
             new PostgresMedusaDailyEntryClaimStore(_dataSource);
         LegacyInstanceDailyEntries =
             new PostgresLegacyInstanceDailyEntryClaimStore(_dataSource);
+        // INSTANCES: Bay Under Attack run ledger (restart refund).
+        HarborAttackRunLedger =
+            new PostgresHarborAttackRunLedger(_dataSource);
+        TrainingGroundStore = new PostgresTrainingGroundStore(_dataSource); // TRAINING
         LegacyInstanceOpalPayments =
             new PostgresLegacyInstanceOpalPaymentStore(
                 _dataSource,
@@ -283,6 +288,7 @@ internal sealed class PostgresApplicationDataRuntime :
         AtlantisCompletionRewards = new PostgresAtlantisCompletionRewardStore(_dataSource);
         TitleSelections = new PostgresCharacterTitleSelectionStore(_dataSource);
         WonderlandTitles = new PostgresWonderlandTitleStore(_dataSource);
+        WonderlandMedals = new PostgresWonderlandMedalStore(_dataSource); // ECONOMY r10
         WonderlandChests = new PostgresWonderlandChestClaimStore(_dataSource);
         WonderlandBlackmarket = new PostgresWonderlandBlackmarketStore(_dataSource);
         var outboxConsumers =
@@ -336,6 +342,9 @@ internal sealed class PostgresApplicationDataRuntime :
     /// The Zeus gift event's per-character delivery, praying-stone and luck state.
     /// </summary>
     public PostgresZeusGiftStore ZeusGift { get; }
+
+    /// <summary>ECONOMY mentor: Master and Apprentice (used only when GODSWAR_MENTOR=1).</summary>
+    public Godswar.Server.Application.Mentor.IMentorStore Mentor { get; }
 
     /// <summary>
     /// The guild tables behind the guild registrar.
@@ -465,6 +474,13 @@ internal sealed class PostgresApplicationDataRuntime :
     public ILegacyInstanceOpalPaymentStore LegacyInstanceOpalPayments
     { get; }
 
+    // INSTANCES
+    public IHarborAttackRunLedger HarborAttackRunLedger { get; }
+
+    public ITrainingGroundStore TrainingGroundStore { get; } // TRAINING
+
+    private readonly DateTimeOffset _processStartedAtUtc = DateTimeOffset.UtcNow;
+
     public IMedusaCompletionRewardStore MedusaCompletionRewards { get; }
 
     public IAtlantisCompletionRewardStore AtlantisCompletionRewards { get; }
@@ -477,6 +493,9 @@ internal sealed class PostgresApplicationDataRuntime :
     /// unconfigured store silently disables every Wonderland NPC service.
     /// </summary>
     public IWonderlandTitleStore WonderlandTitles { get; }
+
+    /// <summary>ECONOMY r10: Wonderland island-clear Medals.</summary>
+    public IWonderlandMedalStore WonderlandMedals { get; }
 
     public IWonderlandChestClaimStore WonderlandChests { get; }
 
@@ -495,6 +514,9 @@ internal sealed class PostgresApplicationDataRuntime :
     public async Task RunLegacyInstanceOpalRecoveryAsync(
         CancellationToken cancellationToken = default)
     {
+        // INSTANCES: a Bay Under Attack run still open from before this process
+        // started was ended by the stop; give its daily entries back once.
+        await RefundInterruptedHarborAttackRunsAsync(cancellationToken);
         while (!cancellationToken.IsCancellationRequested)
         {
             var staleBefore = DateTimeOffset.UtcNow.Subtract(
@@ -520,6 +542,31 @@ internal sealed class PostgresApplicationDataRuntime :
             await Task.Delay(
                 TimeSpan.FromMinutes(1),
                 cancellationToken);
+        }
+    }
+
+    private async Task RefundInterruptedHarborAttackRunsAsync(
+        CancellationToken cancellationToken)
+    {
+        // The rows are always closed; the switch decides whether the entries
+        // are given back ('refunded') or not ('interrupted').
+        var refundEntries = Godswar.Server.Application.Rates.ServerRates.Current
+            .IsHarborAttackRestartRefundOn();
+        try
+        {
+            var result = await HarborAttackRunLedger.RefundInterruptedAsync(
+                checked((short)_realmId.Value),
+                _processStartedAtUtc,
+                refundEntries,
+                cancellationToken);
+            Console.WriteLine(
+                $"[harbor] restart refund realm={_realmId.Value} switch={(refundEntries ? 1 : 0)} " +
+                $"interrupted={result.InterruptedRuns} entries={result.RefundedEntries} " +
+                $"completed={result.CompletedRuns} expired={result.ExpiredRuns}");
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            Console.Error.WriteLine($"[harbor] restart refund failed: {error.Message}");
         }
     }
 

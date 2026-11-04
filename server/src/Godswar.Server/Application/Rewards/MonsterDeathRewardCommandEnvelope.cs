@@ -167,6 +167,42 @@ internal static class MonsterDeathRewardCommandEnvelope
         return new Guid(digest[..16], bigEndian: true);
     }
 
+    private static readonly byte[] PartyShareIdentityDomain =
+        Encoding.ASCII.GetBytes("godswar.monster.death.party-share.v1\0");
+
+    /// <summary>
+    /// PARTY (r02): the runtime identity under which one party member's share
+    /// of a kill settles. Deterministic in (monster runtime instance, member),
+    /// so a replay of the same share finds its own settlement and pays nothing,
+    /// while the real death identity stays with the killer.
+    /// </summary>
+    public static Guid DerivePartyShareRuntimeInstanceId(
+        Guid runtimeInstanceId,
+        int characterId)
+    {
+        if (runtimeInstanceId == Guid.Empty || characterId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(characterId),
+                "A party share needs a monster runtime instance and a character.");
+        }
+
+        var hashInput = new byte[
+            PartyShareIdentityDomain.Length + 16 + sizeof(int)];
+        PartyShareIdentityDomain.CopyTo(hashInput, 0);
+        WriteGuid(
+            runtimeInstanceId,
+            hashInput.AsSpan(PartyShareIdentityDomain.Length, 16));
+        BinaryPrimitives.WriteInt32BigEndian(
+            hashInput.AsSpan(PartyShareIdentityDomain.Length + 16),
+            characterId);
+        Span<byte> digest = stackalloc byte[SHA256.HashSizeInBytes];
+        SHA256.HashData(hashInput, digest);
+        digest[6] = (byte)((digest[6] & 0x0F) | 0x80);
+        digest[8] = (byte)((digest[8] & 0x3F) | 0x80);
+        return new Guid(digest[..16], bigEndian: true);
+    }
+
     private static bool IsValidCommand(
         MonsterDeathRewardCommand command) =>
         HasValidIdentity(

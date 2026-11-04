@@ -117,8 +117,7 @@ internal sealed partial class GameSessionRegistry
                     }
                     eligibility = source is null
                         ? default
-                        : _gameplayCatalogs.PvpWorldAuthority
-                            .EvaluateOpposingFaction(
+                        : EvaluatePlayerPvpAdmission(
                                 source.Character,
                                 target.Character,
                                 now);

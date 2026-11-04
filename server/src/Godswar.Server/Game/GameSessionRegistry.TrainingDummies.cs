@@ -23,8 +23,7 @@ internal sealed partial class GameSessionRegistry
         }
         if (!_trainingDummies.Contains(target))
         {
-            return _gameplayCatalogs.PvpWorldAuthority
-                .EvaluateOpposingFaction(attacker, target, now);
+            return EvaluatePlayerPvpAdmission(attacker, target, now);
         }
 
         return EvaluateTrainingDummyTarget(attacker, target, now);

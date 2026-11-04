@@ -50,7 +50,8 @@ internal static class HarborAttackEntryProtocolChecks
             firstBand.TargetMapId == 208 &&
             firstBand.ClientSceneId == 229 &&
             firstBand.MinimumLevel == 50 &&
-            firstBand.MaximumLevel == int.MaxValue &&
+            firstBand.MaximumLevel == 90 && // BAY2: level 50-90
+            secondBand.MaximumLevel == 90 &&
             firstBand.MinimumPartySize == 3 &&
             firstBand.RequiredPartySize is null &&
             firstBand.PaymentMode == InstanceCallerEntryPaymentMode.FreeOnly &&
@@ -61,7 +62,7 @@ internal static class HarborAttackEntryProtocolChecks
             secondBand.ClientSceneId == 230 &&
             secondBand.MinimumLevel == 50 &&
             secondBand.MinimumPartySize == 3,
-            "levels 50-69 resolve map 208/scene 229 and 70+ resolves " +
+            "levels 50-69 resolve map 208/scene 229 and 70-90 resolves " +
             "map 209/scene 230, both with the level floor and a three-player " +
             "roster floor");
 

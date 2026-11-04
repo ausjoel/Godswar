@@ -38,6 +38,7 @@ internal sealed partial class GameClientHandler
     private (int Slot, CompactItemEntry Item)? _transformGear;
     private (int Slot, CompactItemEntry Item)? _transformAmethyst;
     private bool _transformPreviewPicked;
+    private uint _transformPreferredTarget; // FORGEGEMS: patched-client pick, 0 = random
     private long _transformStartedTimestamp;
 
     private void ClearAmethystTransformSelection()
@@ -45,6 +46,7 @@ internal sealed partial class GameClientHandler
         _transformGear = null;
         _transformAmethyst = null;
         _transformPreviewPicked = false;
+        _transformPreferredTarget = 0;
         _transformStartedTimestamp = 0;
     }
 
@@ -73,9 +75,10 @@ internal sealed partial class GameClientHandler
             if (_transformGear is { } staged && staged.Item.Id == first)
             {
                 _transformPreviewPicked = true;
+                _transformPreferredTarget = EquipmentTransformPick.Enabled ? second : 0;
                 _transformStartedTimestamp = Stopwatch.GetTimestamp();
                 Console.WriteLine(
-                    $"[transform] preview picked character={_character.Name} source={first}");
+                    $"[transform] preview picked character={_character.Name} source={first} candidate={second}");
             }
             else
             {
@@ -107,6 +110,7 @@ internal sealed partial class GameClientHandler
 
             _transformGear = (bagSlot, item);
             _transformPreviewPicked = false;
+            _transformPreferredTarget = 0;
         }
         else if (windowSlot == TransformAmethystSlot)
         {
@@ -162,6 +166,7 @@ internal sealed partial class GameClientHandler
         }
 
         // Clear first so a repeated button press cannot spend twice.
+        var preferredTarget = _transformPreferredTarget;
         ClearAmethystTransformSelection();
         if (_session.IsSecure)
         {
@@ -184,7 +189,8 @@ internal sealed partial class GameClientHandler
                 gear.Item,
                 amethyst.Slot,
                 amethyst.Item,
-                cancellationToken);
+                cancellationToken,
+                preferredTarget);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

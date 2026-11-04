@@ -55,6 +55,36 @@ internal static class MonsterRewardCatalog
             playerLevel,
             policy);
 
+    /// <summary>
+    /// PARTY (r02): the stock kill reward before any level rule, so a party
+    /// split does not depend on which member landed the claim.
+    /// </summary>
+    public static MonsterKillReward ResolveStockReward(
+        MonsterRuntimeSnapshot monster) =>
+        new(
+            BaseExperience(NormalizeTier(monster.Definition.Tier)),
+            NormalTalentExperience);
+
+    /// <summary>
+    /// PARTY (r02): whether a character of this level earns EXP from this
+    /// monster at all (below the level cap and inside the level-gap rule).
+    /// </summary>
+    public static bool EarnsExperience(
+        MonsterRuntimeSnapshot monster,
+        int playerLevel,
+        MonsterRewardPolicySnapshot policy) =>
+        playerLevel < PlayerExperienceCatalog.MaximumLevel &&
+        IsEligible(monster, playerLevel, policy);
+
+    /// <summary>
+    /// PARTY (r02): one equal share. Rounds down (the remainder is not paid);
+    /// a positive amount never rounds to nothing.
+    /// </summary>
+    public static int SplitEqually(int amount, int divisor) =>
+        amount <= 0 || divisor <= 1
+            ? Math.Max(0, amount)
+            : Math.Max(1, amount / divisor);
+
     internal static MonsterKillReward Resolve(uint monsterTier, int playerLevel)
         => Resolve(
             monsterTier,

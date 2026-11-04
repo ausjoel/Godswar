@@ -255,8 +255,25 @@ internal interface IGameStore : IAsyncDisposable
         CompactItemEntry expectedGear,
         int amethystSlot,
         CompactItemEntry expectedAmethyst,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        uint preferredTargetId = 0) =>
         throw new NotSupportedException("Amethyst transform needs the PostgreSQL store.");
+
+    // FORGEGEMS: Gems/Comp tabs. Defaults keep test stubs compiling.
+    Task<ForgeCompoundResult> CompoundGemsAsync(
+        int accountId,
+        int characterId,
+        IReadOnlyList<ForgeCompoundSelection> units,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Gem compound needs the PostgreSQL store.");
+
+    Task<ForgeCompoundResult> CompoundEquipmentAsync(
+        int accountId,
+        int characterId,
+        ForgeCompoundSelection main,
+        IReadOnlyList<ForgeCompoundSelection> supporting,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Equipment compound needs the PostgreSQL store.");
 
     Task<GearEnhancementTransactionResult> EnhanceGearAsync(
         int accountId,

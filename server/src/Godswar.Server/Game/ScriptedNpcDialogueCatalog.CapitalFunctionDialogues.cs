@@ -128,6 +128,9 @@ internal sealed partial class GameClientHandler
     /// whose <c>+20</c> value is unmeasured; and every Index 3 result, because reaching
     /// one needs a real class or weapon conversion, which this server does not perform.
     /// </remarks>
+    // CLASSCHANGE (2026-11-03): with GODSWAR_CLASS_CHANGE=true or server rate npc.class_change = 1,
+    // the four class buttons are answered by TryHandleClassChangeAsync
+    // (ScriptedNpcDialogueCatalog.ClassChange.cs), which performs the change. Off, this table is unchanged.
     private static readonly ScriptedNpcDialogue ClassShifterDialogue = new(
         FunctionNumber: 44,
         OpeningMenu: [100, 101, 102, 103],

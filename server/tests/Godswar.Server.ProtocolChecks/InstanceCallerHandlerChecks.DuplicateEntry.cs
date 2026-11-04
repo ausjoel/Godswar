@@ -15,6 +15,7 @@ internal static partial class InstanceCallerHandlerChecks
     /// </summary>
     private static async Task CheckRepeatedConfirmationQueuesOnceAsync()
     {
+        using var open = InstanceEntrySwitchScope.Open(); // INSTANCES
         var daily = new ScriptedLegacyInstanceDailyEntryStore();
         // 港湾遇袭 admits a party of at least three, so the third member only
         // stays behind to keep the leader's entry legal.

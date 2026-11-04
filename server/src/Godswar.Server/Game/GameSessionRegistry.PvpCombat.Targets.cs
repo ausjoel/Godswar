@@ -34,8 +34,7 @@ internal sealed partial class GameSessionRegistry
                 continue;
             }
 
-            var admission = _gameplayCatalogs.PvpWorldAuthority
-                .EvaluateOpposingFaction(
+            var admission = EvaluatePlayerPvpAdmission(
                     attacker.Character,
                     candidate.Character,
                     now);

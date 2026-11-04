@@ -23,6 +23,56 @@ internal static class BattlefieldSchedulePolicyChecks
 
     private static void CheckPindusWindows()
     {
+        // BATTLEFIELD2: by default Pindus follows the IGG guide (Wed 11:00, Sat 21:00, Sun 11:00);
+        // battlefield.pindus_igg_times = 0 keeps the stock windows checked below.
+        DateTimeOffset[] igg =
+        [
+            ManilaTime(2026, 9, 2, 11, 0),
+            ManilaTime(2026, 9, 5, 21, 0),
+            ManilaTime(2026, 9, 6, 11, 0)
+        ];
+        CheckWindows(BattlefieldDestinationKind.Pindus, igg);
+        Check.True(
+            !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 2, 21, 0)) &&
+            !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 4, 21, 0)) &&
+            !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 5, 8, 0)) &&
+            !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 6, 21, 0)) &&
+            !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 3, 11, 0)) &&
+            BattlefieldSchedulePolicy.PindusMatchesIggText(),
+            "Pindus is closed at the stock starts by default and matches the client's IGG times line");
+        Godswar.Server.Application.Rates.ServerRates.Install(
+            Godswar.Server.Application.Rates.ServerRatesSnapshot.Create(
+                [KeyValuePair.Create(Godswar.Server.Application.Rates.ServerRateKeys.BattlefieldPindusIggTimes, 0m)],
+                1, DateTimeOffset.UtcNow, "check", "test"));
+        try
+        {
+            CheckStockPindusWindows();
+            Check.True(!BattlefieldSchedulePolicy.PindusMatchesIggText(),
+                "with the IGG times off the transporter does not print the IGG times line");
+        }
+        finally
+        {
+            Godswar.Server.Application.Rates.ServerRates.ResetToDefaults();
+        }
+        Godswar.Server.Application.Rates.ServerRates.Install(
+            Godswar.Server.Application.Rates.ServerRatesSnapshot.Create(
+                [KeyValuePair.Create(Godswar.Server.Application.Rates.ServerRateKeys.BattlefieldShiftHours, 2m)],
+                1, DateTimeOffset.UtcNow, "check", "test"));
+        try
+        {
+            Check.True(!BattlefieldSchedulePolicy.PindusMatchesIggText() &&
+                       IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 2, 13, 0)) &&
+                       !IsOpen(BattlefieldDestinationKind.Pindus, ManilaTime(2026, 9, 2, 11, 0)),
+                "a shifted IGG window moves and no longer claims the client's IGG times line");
+        }
+        finally
+        {
+            Godswar.Server.Application.Rates.ServerRates.ResetToDefaults();
+        }
+    }
+
+    private static void CheckStockPindusWindows()
+    {
         DateTimeOffset[] starts =
         [
             ManilaTime(2026, 9, 2, 21, 0),
@@ -51,25 +101,57 @@ internal static class BattlefieldSchedulePolicyChecks
 
     private static void CheckNiMiniWindows()
     {
-        DateTimeOffset[] starts =
+        // RELEASE: battlefield.nimini_igg_times now defaults to 0 (stock windows); the release default is
+        // checked first, then the switch is turned on for the IGG part (Fri 21:45, Sun 19:00).
+        Godswar.Server.Application.Rates.ServerRates.ResetToDefaults();
+        Check.True(IsOpen(BattlefieldDestinationKind.NiMiniUpper, ManilaTime(2026, 9, 4, 19, 0)),
+            "RELEASE default: Ni Mini opens at the stock Friday 19:00 (nimini_igg_times = 0)");
+        Godswar.Server.Application.Rates.ServerRates.Install(
+            Godswar.Server.Application.Rates.ServerRatesSnapshot.Create(
+                [KeyValuePair.Create(Godswar.Server.Application.Rates.ServerRateKeys.BattlefieldNiMiniIggTimes, 1m)],
+                1, DateTimeOffset.UtcNow, "check", "test"));
+        DateTimeOffset[] igg =
         [
-            ManilaTime(2026, 9, 4, 19, 0),
-            ManilaTime(2026, 9, 5, 7, 0),
+            ManilaTime(2026, 9, 4, 21, 45),
             ManilaTime(2026, 9, 6, 19, 0)
         ];
-        CheckWindows(BattlefieldDestinationKind.NiMiniLower, starts);
-        CheckWindows(BattlefieldDestinationKind.NiMiniUpper, starts);
+        CheckWindows(BattlefieldDestinationKind.NiMiniLower, igg);
+        CheckWindows(BattlefieldDestinationKind.NiMiniUpper, igg);
         Check.True(
-            !IsOpen(
-                BattlefieldDestinationKind.NiMiniUpper,
-                ManilaTime(2026, 9, 2, 19, 0)) &&
-            !IsOpen(
-                BattlefieldDestinationKind.NiMiniUpper,
-                ManilaTime(2026, 9, 5, 8, 0)) &&
-            !IsOpen(
-                BattlefieldDestinationKind.NiMiniUpper,
-                ManilaTime(2026, 9, 6, 20, 0)),
-            "Ni Mini stays closed outside Friday, Saturday, and Sunday windows");
+            !IsOpen(BattlefieldDestinationKind.NiMiniUpper, ManilaTime(2026, 9, 4, 19, 0)) &&
+            !IsOpen(BattlefieldDestinationKind.NiMiniUpper, ManilaTime(2026, 9, 5, 7, 0)),
+            "Ni Mini is closed at the stock Friday 19:00 and Saturday 07:00 starts with the IGG switch on");
+        Godswar.Server.Application.Rates.ServerRates.Install(
+            Godswar.Server.Application.Rates.ServerRatesSnapshot.Create(
+                [KeyValuePair.Create(Godswar.Server.Application.Rates.ServerRateKeys.BattlefieldNiMiniIggTimes, 0m)],
+                1, DateTimeOffset.UtcNow, "check", "test"));
+        try
+        {
+            DateTimeOffset[] starts =
+            [
+                ManilaTime(2026, 9, 4, 19, 0),
+                ManilaTime(2026, 9, 5, 7, 0),
+                ManilaTime(2026, 9, 6, 19, 0)
+            ];
+            CheckWindows(BattlefieldDestinationKind.NiMiniLower, starts);
+            CheckWindows(BattlefieldDestinationKind.NiMiniUpper, starts);
+            Check.True(
+                !IsOpen(
+                    BattlefieldDestinationKind.NiMiniUpper,
+                    ManilaTime(2026, 9, 2, 19, 0)) &&
+                !IsOpen(
+                    BattlefieldDestinationKind.NiMiniUpper,
+                    ManilaTime(2026, 9, 5, 8, 0)) &&
+                !IsOpen(
+                    BattlefieldDestinationKind.NiMiniUpper,
+                    ManilaTime(2026, 9, 6, 20, 0)),
+                "Ni Mini stays closed outside Friday, Saturday, and Sunday windows");
+        }
+        finally
+        {
+            // BATTLEFIELD: never leak the rate into later checks, even when a check above throws.
+            Godswar.Server.Application.Rates.ServerRates.ResetToDefaults();
+        }
     }
 
     private static void CheckDuelAndUnknownPolicies()

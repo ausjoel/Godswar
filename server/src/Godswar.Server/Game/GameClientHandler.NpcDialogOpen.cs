@@ -51,10 +51,12 @@ internal sealed partial class GameClientHandler
             $"map={npc.MapId} len={packet.Length} buffer={packet.Buffer.Length} " +
             $"carried={_character?.Quests.Count ?? 0}",
             []);
+        await TryReissueVillageLeaderBooksAsync(npc, cancellationToken); // VILLAGERS
 
         // Operator-authored GM NPCs answer next. They are injected into the map
         // roster by the GM layer at login, so the published route lookup below
         // finds nothing for their key and would leave every click unanswered.
+        if (await TryHandleParnassusTransporterOpenAsync(npc, cancellationToken)) return; // ARENA
         if (await TryHandleGmNpcDialogOpenAsync(npc, cancellationToken))
         {
             QuestFrameTrace.Append(
@@ -619,6 +621,8 @@ internal sealed partial class GameClientHandler
 
         if (page == WishingPoolLostBookPage)
         {
+            if (await TryHandleLostBookWishAsync(npcId, page, selection, cancellationToken)) return; // EVENTSNPC
+
             // The reference server's answer to this page is captured: it replies
             // [101, 1, 2]. Either of the two book buttons leads to the wish itself,
             // which this server does not run, so the answer is the script's own

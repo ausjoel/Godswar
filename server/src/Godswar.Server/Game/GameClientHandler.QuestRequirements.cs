@@ -166,6 +166,8 @@ internal sealed partial class GameClientHandler
 
     private async Task ApplyQuestPlayerDeathAsync(QuestPlayerDeath victim, CancellationToken cancellationToken)
     {
+        // BATTLEFIELD: Pindus / Ni Mini kill scoring (its own gate; never touches quests).
+        await RecordBattlefieldPlayerKillAsync(victim, cancellationToken);
         if (_character is null || victim.KillerId != _character.Id || victim.VictimId == _character.Id ||
             victim.Camp == _character.Camp)
         {

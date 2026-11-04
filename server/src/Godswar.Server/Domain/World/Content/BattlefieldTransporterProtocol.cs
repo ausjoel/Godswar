@@ -81,6 +81,10 @@ internal static class BattlefieldTransporterProtocol
     public const int PindusMinimumLevelResultSubId = 8002;
     public const int PindusClosedResultSubId = 8000;
     public const int PindusLevelResultSubId = 8001;
+    // BATTLEFIELD2: NF_L0_Y7001 (level refusal, "lv.60-140" in the stock text) and NF_L0_Y7002 (the IGG Pindus times),
+    // both drawn by NpcFunTranmit.lua Index 2 like 8000/8001.
+    public const int PindusBandLevelResultSubId = 7001;
+    public const int PindusIggClosedResultSubId = 7002;
     public const int NiMiniResultDialogIndex = 3;
     public const int NiMiniUnavailableResultSubId = 7000;
 

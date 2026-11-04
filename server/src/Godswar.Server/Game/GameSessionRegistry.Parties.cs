@@ -198,8 +198,25 @@ internal sealed partial class GameSessionRegistry
                     PartyOperationStatus.InvitationMissing);
             }
 
-            return Applied();
+            // PARTY (r02): tell the inviter. The client has no handler for a
+            // forwarded 10132 and the 10131 tip layout is unproven, so this is
+            // one line in the stock personal game log (no dialog).
+            return Applied(
+                new PartyDelivery(
+                    inviter.Session,
+                    PacketBuilder.PersonalGameLog(
+                        PartyInviteDeclinedText(actor.CharacterName)),
+                    "PartyInviteDeclined"));
         }
+    }
+
+    internal static string PartyInviteDeclinedText(string declinerName)
+    {
+        var name = declinerName?.Trim() ?? string.Empty;
+        return name.Length is > 0 and <= 32 &&
+               name.All(static character => character is >= ' ' and <= '~')
+            ? $"{name} declined your party invitation."
+            : "Your party invitation was declined.";
     }
 
     internal PartyOperationResult RemovePartyMember(

@@ -45,6 +45,7 @@ internal sealed partial class GameSessionRegistry
     /// </summary>
     internal async Task RetryWonderlandTitlesAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
+        await RetryWonderlandMedalsAsync(now, cancellationToken); // ECONOMY r10
         var store = _wonderlandTitles;
         if (store is null) return;
         foreach (var entry in _wonderlandTitlePending.OrderBy(pair => pair.Value.ClearedAtUtc))
@@ -62,6 +63,7 @@ internal sealed partial class GameSessionRegistry
                         entry.Value.AdmittedCharacterIds, cancellationToken);
                 var receipt = await store.SettleAsync(entry.Value, cancellationToken);
                 if (!receipt.Succeeded) throw new InvalidOperationException($"Title settlement rejected: {receipt.Status}.");
+                QueueWonderlandMedals(entry.Value); // ECONOMY r10: paid by its own retry loop, never blocks titles
                 await PublishWonderlandTitlesAsync(entry.Value, receipt);
                 MarkWonderlandCompletionNoticeSettled(entry.Value);
                 _wonderlandTitleSettled[entry.Key] = entry.Value.RequestHash;

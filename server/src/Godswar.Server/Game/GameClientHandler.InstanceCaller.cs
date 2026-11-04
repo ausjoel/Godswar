@@ -33,6 +33,26 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        // INSTANCES: a closed instance (server_rates switch off) is refused here,
+        // before any page context, countdown, daily-entry claim or teleport.
+        var closedInstance = InstanceCallerProtocol.ResolveClosedInstance(
+            dialogIndex,
+            subId,
+            arguments,
+            InstanceEntrySwitches.IsHarborAttackOpen,
+            InstanceEntrySwitches.IsTrainingGroundOpen);
+        if (closedInstance != InstanceCallerProtocol.ClosedInstance.None)
+        {
+            await RefuseClosedInstanceAsync(
+                packet,
+                route,
+                npcId,
+                dialogIndex,
+                closedInstance,
+                cancellationToken);
+            return;
+        }
+
         if (InstanceCallerProtocol.TryGetPage(
                 dialogIndex,
                 subId,
@@ -118,30 +138,9 @@ internal sealed partial class GameClientHandler
                 return;
             }
 
-            var sourceMap = _character.CurrentMap;
-            var outcome = await TryBeginMapTransitionAsync(
-                heraclesMapId,
-                heraclesX,
-                heraclesZ,
-                $"instance-caller:heracles-trial:{npcId}",
-                cancellationToken);
-            Console.WriteLine(
-                "[instance-caller] Heracles trial entry " +
-                $"character={_character.Name} level={_character.Level} " +
-                $"map={sourceMap}->{heraclesMapId} " +
-                $"arrival=({heraclesX},{heraclesZ}) outcome={outcome}");
-            if (outcome == SceneTransitionOutcome.RejectedWithoutRelocation)
-            {
-                // The map authority refused the move. Answer with the reference's
-                // own line for this page so the window is not left silent.
-                await _session.SendAsync(
-                    PacketBuilder.NpcFunctionActionResponse(
-                        npcId,
-                        dialogIndex,
-                        InstanceCallerProtocol.AtlantisLevelResultSubId),
-                    cancellationToken,
-                    "InstanceCallerHeraclesUnavailable");
-            }
+            // TRAINING: the page opens the party's Enter window for one exact
+            // Training Ground run (was: a direct move onto the shared map 210).
+            await BeginTrainingGroundEntryAsync(npcId, dialogIndex, cancellationToken);
 
             return;
         }
@@ -383,6 +382,49 @@ internal sealed partial class GameClientHandler
                 entryStatus,
                 cancellationToken);
         }
+    }
+
+    private async Task RefuseClosedInstanceAsync(
+        GamePacket packet,
+        NpcDialogueRouteDefinition route,
+        uint npcId,
+        int dialogIndex,
+        InstanceCallerProtocol.ClosedInstance closedInstance,
+        CancellationToken cancellationToken)
+    {
+        if (!IsCanonicalInstanceCallerAction(
+                packet,
+                route,
+                npcId,
+                dialogIndex))
+        {
+            Console.Error.WriteLine(
+                "[instance-caller] rejected non-canonical closed-instance " +
+                $"request npc={npcId} instance={closedInstance}");
+            return;
+        }
+
+        ClearInstanceCallerPageContext();
+        await _session.SendAsync(
+            PacketBuilder.NpcFunctionActionResponse(
+                npcId,
+                dialogIndex,
+                InstanceCallerProtocol.ClosedInstanceResultSubId),
+            cancellationToken,
+            "InstanceCallerClosedInstance");
+        var note = closedInstance ==
+            InstanceCallerProtocol.ClosedInstance.HarborAttack
+                ? InstanceEntrySwitches.HarborAttackClosedNote
+                : InstanceEntrySwitches.TrainingGroundClosedNote;
+        await _session.SendAsync(
+            PacketBuilder.PersonalNotice(
+                System.Text.Encoding.ASCII.GetBytes(note)),
+            cancellationToken,
+            "InstanceCallerClosedInstanceNote");
+        Console.WriteLine(
+            "[instance-caller] closed instance refused " +
+            $"character={_character?.Name ?? "<none>"} " +
+            $"instance={closedInstance}");
     }
 
     private async Task SendInstanceCallerFailureAsync(

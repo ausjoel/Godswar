@@ -406,6 +406,7 @@ internal sealed partial class GameClientHandler
         // EXPIRY (b03): item timers for the tooltip, then the online sweep.
         await BeginItemExpiryAfterEnterAsync(cancellationToken);
         StartFarmRewardClaims();
+        StartPartyKillShares(); // PARTY (r02)
     }
 
     private async Task SendMapWorldObjectsAsync(CancellationToken cancellationToken)
@@ -493,6 +494,8 @@ internal sealed partial class GameClientHandler
             npcDefinitions.AddRange(gmNpcs);
         }
 
+        npcDefinitions.AddRange(EventsNpcSpawns((short)_character.CurrentMap, npcDefinitions)); // EVENTSNPC
+
         var npcCatalog = await _registry.PublishMapNpcDefinitionsAsync(
             _character.CurrentMap,
             npcDefinitions,
@@ -524,9 +527,11 @@ internal sealed partial class GameClientHandler
                 // Pet models stay out of authored spawns, except the farm's capturable dogs.
                 (!template.IsPet ||
                     (currentMapId == LelantineFarmProtocol.MapId &&
-                        LelantineFarmDogPolicy.TryGetTier(template.TemplateKey, out _))))
+                        LelantineFarmDogPolicy.TryGetTier(template.TemplateKey, out _)) ||
+                    WildPetCapturePolicy.AdmitsAuthoredSpawn(currentMapId, template.TemplateKey)))
             .Select(static template => template.TemplateKey)
             .ToHashSet(StringComparer.Ordinal);
+        AddTrainingGroundTemplateKeys(currentMapId, catalogTemplateKeys); // TRAINING
         var loadedMonsterDefinitions = MonsterOverridePolicy.Apply(
             mapContent.Monsters,
             _character.CurrentMap,

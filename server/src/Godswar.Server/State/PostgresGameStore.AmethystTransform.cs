@@ -15,7 +15,8 @@ internal sealed partial class PostgresGameStore
         CompactItemEntry expectedGear,
         int amethystSlot,
         CompactItemEntry expectedAmethyst,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        uint preferredTargetId = 0)
     {
         if (gearSlot is < 0 or >= KitBagProjectionSlots ||
             amethystSlot is < 0 or >= KitBagProjectionSlots ||
@@ -82,7 +83,12 @@ internal sealed partial class PostgresGameStore
             gear,
             amethyst,
             targets,
-            System.Security.Cryptography.RandomNumberGenerator.GetInt32(targets.Count));
+            // FORGEGEMS: the player's preview pick when a patched client
+            // sends it (stock clients send 0, which keeps the random pick).
+            EquipmentTransformPick.ChooseIndex(
+                targets,
+                preferredTargetId,
+                System.Security.Cryptography.RandomNumberGenerator.GetInt32(targets.Count)));
         if (plan is null)
         {
             await transaction.RollbackAsync(cancellationToken);

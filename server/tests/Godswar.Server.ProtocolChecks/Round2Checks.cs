@@ -91,7 +91,8 @@ internal static class Round2Checks
             ServerRateCatalog.Definitions.Count(definition =>
                 definition.Category is ServerRateCatalog.CostCategory or
                     ServerRateCatalog.DailyCategory or
-                    ServerRateCatalog.EventCategory) == 16,
+                    ServerRateCatalog.EventCategory &&
+                definition.Key != ServerRateKeys.EventBoard) == 16, // EVENTSBOARD adds its own switch
             "round 2 adds 16 cost, limit and event settings");
     }
 
@@ -180,7 +181,8 @@ internal static class Round2Checks
 
     private static void CheckEventWindows()
     {
-        ServerRates.ResetToDefaults();
+        // BATTLEFIELD2: these cases use the stock Pindus windows; the default is now the IGG times.
+        Install((ServerRateKeys.BattlefieldPindusIggTimes, 0m));
         var calendar = RealmCalendar.CreateForTesting(RealmId.Tempest, "Asia/Manila");
         // Wednesday 2026-10-28 21:10 Manila = 13:10 UTC (Pindus opens 21:00).
         var wednesdayNine = new DateTimeOffset(2026, 10, 28, 13, 10, 0, TimeSpan.Zero);
@@ -195,7 +197,7 @@ internal static class Round2Checks
             !BattlefieldSchedulePolicy.IsOpen(BattlefieldDestinationKind.Pindus, calendar, wednesdayNine.AddMinutes(40)),
             "the stock window closes after 45 minutes");
 
-        Install((ServerRateKeys.BattlefieldShiftHours, -2m));
+        Install((ServerRateKeys.BattlefieldShiftHours, -2m), (ServerRateKeys.BattlefieldPindusIggTimes, 0m));
         Check.True(
             BattlefieldSchedulePolicy.IsOpen(BattlefieldDestinationKind.Pindus, calendar, wednesdaySeven),
             "a -2 hour shift opens Pindus at 19:00");
@@ -203,7 +205,7 @@ internal static class Round2Checks
             !BattlefieldSchedulePolicy.IsOpen(BattlefieldDestinationKind.Pindus, calendar, wednesdayNine),
             "a -2 hour shift closes the 21:00 window");
 
-        Install((ServerRateKeys.BattlefieldWindowMinutes, 120m));
+        Install((ServerRateKeys.BattlefieldWindowMinutes, 120m), (ServerRateKeys.BattlefieldPindusIggTimes, 0m));
         Check.True(
             BattlefieldSchedulePolicy.IsOpen(BattlefieldDestinationKind.Pindus, calendar, wednesdayNine.AddMinutes(90)),
             "a 120-minute window is still open after 100 minutes");

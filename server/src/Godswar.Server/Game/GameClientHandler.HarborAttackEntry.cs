@@ -86,8 +86,49 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        // INSTANCES: a switch closed after the window opened refuses the join
+        // before any daily entry is claimed.
+        if (join.Kind == InstanceCallerEntryKind.HarborAttack &&
+            !InstanceEntrySwitches.IsHarborAttackOpen)
+        {
+            await _session.SendAsync(
+                PacketBuilder.ServerNote(InstanceEntrySwitches.HarborAttackClosedNote),
+                cancellationToken,
+                "MemberEntryInstanceClosed");
+            return;
+        }
+        // BAY2: a late joiner must be level 50-90 too, before any claim.
+        if (join.Kind == InstanceCallerEntryKind.HarborAttack &&
+            _character.Level is < InstanceCallerProtocol.HarborAttackMinimumLevel or
+                > InstanceCallerProtocol.HarborAttackMaximumLevel)
+        {
+            await _session.SendAsync(
+                PacketBuilder.PersonalNotice(
+                    System.Text.Encoding.ASCII.GetBytes(HarborAttackLevelBandNote)),
+                cancellationToken,
+                "MemberEntryLevelBand");
+            return;
+        }
+
+        if (join.Kind == InstanceCallerEntryKind.TrainingGround && // TRAINING
+            !InstanceEntrySwitches.IsTrainingGroundOpen)
+        {
+            await _session.SendAsync(
+                PacketBuilder.ServerNote(InstanceEntrySwitches.TrainingGroundClosedNote),
+                cancellationToken,
+                "MemberEntryInstanceClosed");
+            return;
+        }
+
         var startedAt = DateTimeOffset.UtcNow;
         var reservationId = Guid.NewGuid();
+        if (join.Kind == InstanceCallerEntryKind.HarborAttack)
+        {
+            // INSTANCES: this reservation belongs to the run, so a restart refund
+            // gives it back too (ordered before any close of the run).
+            _registry.RecordHarborAttackMemberReservation(
+                join.TargetInstanceId, reservationId, _character.Id);
+        }
         LegacyInstanceDailyEntryClaimResult? claim;
         try
         {

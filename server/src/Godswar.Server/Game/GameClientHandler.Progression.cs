@@ -11,7 +11,8 @@ internal sealed partial class GameClientHandler
 {
     private async Task<PendingMonsterKillReward?>
         PrepareMonsterKillRewardAsync(
-            MonsterDamageResult damageResult)
+            MonsterDamageResult damageResult,
+            int partyDivisor = 1)
     {
         if (_account is null || _character is null || !damageResult.Killed)
         {
@@ -27,6 +28,9 @@ internal sealed partial class GameClientHandler
         // kill rather than the experience it paid.
         await RecordFarmKillAsync(damageResult, CancellationToken.None);
 
+        // BATTLEFIELD: the Pindus Dragon's 1,000 points (its own gate).
+        await RecordBattlefieldBossKillAsync(damageResult, CancellationToken.None);
+
         var rewardPolicy = _gameplayCatalogs.MonsterRewards;
         var rewardEligible = MonsterRewardCatalog.IsEligible(
             damageResult.Monster,
@@ -36,6 +40,18 @@ internal sealed partial class GameClientHandler
             damageResult.Monster,
             _character.Level,
             rewardPolicy);
+        if (partyDivisor > 1)
+        {
+            // PARTY (r02): the killer keeps one equal share; boosts and the
+            // server rates below then apply once, to that share.
+            reward = new MonsterKillReward(
+                MonsterRewardCatalog.SplitEqually(
+                    reward.Experience,
+                    partyDivisor),
+                MonsterRewardCatalog.SplitEqually(
+                    reward.TalentExperience,
+                    partyDivisor));
+        }
         var basePetExperience =
             MonsterRewardCatalog.ResolvePetExperience(
                 damageResult.Monster,
@@ -115,6 +131,9 @@ internal sealed partial class GameClientHandler
                 $"pet-exp={stockPetExperience}->{awardedPetExperience} " +
                 $"rates-revision={rates.Revision}");
         }
+
+        // TITLES: Fortune Teller Lucky Day, +5% EXP and Talent EXP (off unless switched on).
+        (awardedExperience, awardedTalentExperience) = ApplyZodiacLuckyDayBonus(awardedExperience, awardedTalentExperience, rewardTime);
 
         MonsterRewardSettlement? settlement;
         try
@@ -204,6 +223,7 @@ internal sealed partial class GameClientHandler
             $"[reward] character={_character.Name} base-exp={reward.Experience} awarded-exp={awardedExperience} exp-bonus-bps={experienceBoosts.TotalBonusBasisPoints} base-talent-exp={reward.TalentExperience} awarded-talent-exp={awardedTalentExperience} talent-bonus-bps={experienceBoosts.TotalTalentBonusBasisPoints} global-exp-multiplier-bps={_gameplayCatalogs.MonsterRewards.GlobalExperienceMultiplierBasisPoints} boosts={string.Join(',', experienceBoosts.ActiveBoosts.Select(boost => boost.StatusId))}");
 
         if (settlement.IsFirstCommit &&
+            !pending.PartyShare &&
             _registry.PlayerRuntimeMode == PlayerRuntimeMode.Ecs)
         {
             try
@@ -340,13 +360,19 @@ internal sealed partial class GameClientHandler
                 "MonsterKillTalentExperience");
         }
 
-        await SendMonsterDeathProgressionAsync(
-            damageResult.ObjectId,
-            damageResult.Monster.SpawnGeneration,
-            _character.Experience,
-            _character.TalentExperience,
-            _character.TalentPoints,
-            cancellationToken);
+        // PARTY (r02): the 10027 death frame belongs to the killer (it also
+        // clears that monster's loot window); a sharing member gets the 10031 (0x272F)
+        // EXP frame and status refresh above instead.
+        if (!pending.PartyShare)
+        {
+            await SendMonsterDeathProgressionAsync(
+                damageResult.ObjectId,
+                damageResult.Monster.SpawnGeneration,
+                _character.Experience,
+                _character.TalentExperience,
+                _character.TalentPoints,
+                cancellationToken);
+        }
 
         if (settlement.PetExperience is
                 { HasPetProjection: true } petExperience)
@@ -383,7 +409,7 @@ internal sealed partial class GameClientHandler
             pending.WorldBossControl,
             cancellationToken);
         Console.WriteLine(
-            $"[reward] kill character={_character.Name} monster={damageResult.ObjectId} death={settlement.DeathEventId:N} durable={settlement.IsDurable} first={settlement.IsFirstCommit} level={progression.PreviousLevel}->{_character.Level} exp=+{(settlement.IsFirstCommit ? progression.ExperienceGained : 0)}->{_character.Experience} talent-exp=+{(settlement.IsFirstCommit ? progression.TalentExperienceGained : 0)}->{_character.TalentExperience} talent-points=+{(settlement.IsFirstCommit ? progression.TalentPointsGained : 0)}->{_character.TalentPoints}");
+            $"[reward] {(pending.PartyShare ? "party-share" : "kill")} character={_character.Name} monster={damageResult.ObjectId} death={settlement.DeathEventId:N} durable={settlement.IsDurable} first={settlement.IsFirstCommit} level={progression.PreviousLevel}->{_character.Level} exp=+{(settlement.IsFirstCommit ? progression.ExperienceGained : 0)}->{_character.Experience} talent-exp=+{(settlement.IsFirstCommit ? progression.TalentExperienceGained : 0)}->{_character.TalentExperience} talent-points=+{(settlement.IsFirstCommit ? progression.TalentPointsGained : 0)}->{_character.TalentPoints}");
     }
 
     private sealed record PendingMonsterKillReward(
@@ -394,7 +420,8 @@ internal sealed partial class GameClientHandler
         int AwardedTalentExperience,
         MonsterRewardSettlement Settlement,
         FactionAreaExperienceControl? WorldBossControl,
-        MonsterLootPresentation? MonsterLoot);
+        MonsterLootPresentation? MonsterLoot,
+        bool PartyShare = false);
 
     private async Task<MonsterRewardSettlement?>
         SettleLegacyMonsterRewardAsync(

@@ -47,9 +47,13 @@ try
     await ServerRatesRuntime.InitializeAsync(postgres);
     // EXPIRY (b03): real-time item expiry; off unless the migration is applied.
     await Godswar.Server.Infrastructure.Inventory.ItemExpiryRuntime.InitializeAsync(postgres);
+    // TRADE: player trade / stall store (player_trade_log); never fails start-up.
+    await Godswar.Server.Infrastructure.Trade.PlayerTradeStore.InitializeAsync(postgres);
     await NpcContentRuntime.InitializeAsync(postgres);
     // EVENT DROPS (q07): dated holiday/event drop windows; none = stock drops.
     await Godswar.Server.Infrastructure.Rates.EventDropWindowRuntime.InitializeAsync(postgres);
+    await Godswar.Server.Infrastructure.Events.EventBoardRuntime.InitializeAsync(postgres); // EVENTSBOARD
+    await Godswar.Server.Infrastructure.Arena.AfkRevivalWallet.InitializeAsync(postgres); // ARENA
     await Godswar.Server.Infrastructure.Relations.RelationStore.InitializeAsync(postgres);
     Godswar.Server.Application.Operators.OperatorControls.UsesCharacterGmFlags = options.Game.DeveloperCommands.UseCharacterGmFlags;
     // ROUND2: operator (GM) command store (operator_log); never fails start-up.
@@ -57,6 +61,7 @@ try
     var (realmCalendars, realmCalendar) =
         await ServerRealmCalendarStartup.LoadForProcessAsync(options);
     NpcContentRuntime.Calendar = realmCalendar;
+    Godswar.Server.Infrastructure.EventsNpc.EventsNpcRuntime.Initialize(postgres); // EVENTSNPC
     var itemContent = await ServerItemContentComposition.LoadAsync(options);
     var petContent = await ServerPetContentComposition.LoadAsync(
         options,
@@ -373,6 +378,7 @@ try
         criticalTasks.Start(CriticalTaskKind.MonsterWorld, registry.RunMonsterRoamingAsync);
         criticalTasks.Start(CriticalTaskKind.PlayerRecovery, registry.RunPlayerRecoveryAsync);
         criticalTasks.Start(CriticalTaskKind.PopulationNotices, token => registry.RunPopulationNoticesAsync(realmCalendar, token));
+        auxiliaryTasks.Add(registry.RunEventBoardAsync(realmCalendar, shutdown.Token)); // EVENTSBOARD: off unless event.board = 1
         // The altar drain has to be applied whether or not the member is online, so
         // it runs on the server's own clock rather than on a read.
         criticalTasks.Start(
@@ -381,6 +387,10 @@ try
         if (store is Godswar.Server.State.ILelantineFarmRoundStore farmRounds)
         {
             _ = registry.RunLelantineFarmRoundsAsync(farmRounds, shutdown.Token);
+        }
+        if (store is Godswar.Server.State.IBattlefieldRoundStore battlefieldRounds)
+        {
+            _ = registry.RunBattlefieldRoundsAsync(battlefieldRounds, shutdown.Token);
         }
         criticalTasks.Start(CriticalTaskKind.ExperienceBoostReconciliation, registry.RunExperienceBoostStatusReconciliationAsync);
         if (options.Game.ZodiacEnergy.Enabled)

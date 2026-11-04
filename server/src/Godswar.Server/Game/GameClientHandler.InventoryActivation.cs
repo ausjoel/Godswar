@@ -75,6 +75,7 @@ internal sealed partial class GameClientHandler
         }
 
         if (await TryOpenQuestScrollAsync(sourceSlot, cancellationToken)) return;
+        if (await TryUseEventsNpcItemAsync((int)itemId, cancellationToken)) return; // EVENTSNPC
 
         if (packet.ClientOperationId is { } operationId)
         {

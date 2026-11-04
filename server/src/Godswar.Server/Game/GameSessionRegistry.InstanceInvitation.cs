@@ -398,6 +398,8 @@ internal sealed partial class GameSessionRegistry
         {
             InstanceCallerEntryKind.HarborAttack =>
                 _harborAttackAdmissions.ContainsKey(actor.WorldInstanceId),
+            InstanceCallerEntryKind.TrainingGround => // TRAINING
+                IsTrainingGroundAdmission(actor.WorldInstanceId),
             InstanceCallerEntryKind.Atlantis =>
                 IsCurrentAtlantisInvitingMemberLocked(actor),
             InstanceCallerEntryKind.Wonderland =>

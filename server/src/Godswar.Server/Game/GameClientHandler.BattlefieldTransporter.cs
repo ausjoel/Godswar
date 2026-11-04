@@ -40,6 +40,11 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        if (await TryHandleParnassusEntryAsync(npcId, dialogIndex, subId, arguments, cancellationToken)) // ARENA
+        {
+            return;
+        }
+
         if (BattlefieldTransporterProtocol.TryGetNiMiniPage(
                 dialogIndex,
                 subId,
@@ -88,6 +93,17 @@ internal sealed partial class GameClientHandler
         }
 
         ClearBattlefieldTransporterDialogueContext();
+
+        // BATTLEFIELD2: Pindus admits level 60-200 (battlefield.pindus_band; 0 = the compiled 31-120). An editor row
+        // below still replaces the minimum, as it does for every destination.
+        if (destination.Kind == BattlefieldDestinationKind.Pindus && BattlefieldRewardPolicy.PindusBandEnabled)
+        {
+            destination = destination with
+            {
+                MinimumLevel = BattlefieldRewardPolicy.PindusBandMinimumLevel,
+                MaximumLevel = BattlefieldRewardPolicy.PindusBandMaximumLevel
+            };
+        }
 
         // Editor override (npc_teleport_overrides). Opening hours and the upper level limit stay as compiled.
         var edited = NpcContentOverrides.Current.Teleports.GetValueOrDefault((
@@ -151,6 +167,12 @@ internal sealed partial class GameClientHandler
                 $"npc-battlefield-transporter:{route.NpcKey}:{subId}",
                 cancellationToken)
             : SceneTransitionOutcome.RejectedWithoutRelocation;
+        // BATTLEFIELD: an admitted entry into an open Pindus / Ni Mini window makes the
+        // character a participant of that round (IGG: every participant is rewarded).
+        if (transitioned != SceneTransitionOutcome.RejectedWithoutRelocation)
+        {
+            await RecordBattlefieldEntryAsync(destination.Kind, CancellationToken.None);
+        }
         if (transitioned == SceneTransitionOutcome.CommittedRequiresReconnect)
         {
             return;
@@ -261,6 +283,15 @@ internal sealed partial class GameClientHandler
     {
         var (dialogIndex, subId) = destination switch
         {
+            // BATTLEFIELD2: the client's own Pindus lines in the same Index 2 branch of NpcFunTranmit.lua:
+            // 7001 "You should be lv.60-140 ..." (the level refusal; client text edit to 60-200 in
+            // Development/build/battlefield2/client) and 7002, which prints the IGG times, when those are the times.
+            BattlefieldDestinationKind.Pindus when !closed && BattlefieldRewardPolicy.PindusBandEnabled =>
+                (BattlefieldTransporterProtocol.PindusResultDialogIndex,
+                    BattlefieldTransporterProtocol.PindusBandLevelResultSubId),
+            BattlefieldDestinationKind.Pindus when closed && BattlefieldSchedulePolicy.PindusMatchesIggText() =>
+                (BattlefieldTransporterProtocol.PindusResultDialogIndex,
+                    BattlefieldTransporterProtocol.PindusIggClosedResultSubId),
             BattlefieldDestinationKind.Pindus when
                 _character is { Level: < 31 } =>
                 (BattlefieldTransporterProtocol

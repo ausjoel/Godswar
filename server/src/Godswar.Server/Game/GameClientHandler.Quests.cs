@@ -288,6 +288,8 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        MarkMentorLevelUp(); // ECONOMY mentor: a level-50 apprentice graduates at its next packet
+
         var acceptable = AcceptableQuests();
         await SendQuestNpcMarksAsync(cancellationToken);
 
@@ -644,6 +646,7 @@ internal sealed partial class GameClientHandler
                 $"quest={questId}");
             return;
         }
+        if (commit && await GuildQuestAcceptRefusedAsync(questId, cancellationToken)) return; // GUILD
 
         var giverNpcId = await ResolveQuestNpcIdForSnapshotAsync(step.GiverKey, cancellationToken);
         var responderNpcId = await ResolveQuestNpcIdForSnapshotAsync(step.ResponderKey, cancellationToken);
@@ -830,6 +833,7 @@ internal sealed partial class GameClientHandler
                 rewarded.TalentPoints,
                 rewarded.Silver,
                 rewarded.Gold));
+        payout = await GuildQuestPersonalPayoutAsync(rewarded.QuestId, payout, cancellationToken); // GUILD
         // RATES: quest Talent / Silver / Gold multipliers (public.server_rates);
         // the EXP multiplier follows the appraisal bonus below.
         var questRates = Godswar.Server.Application.Rates.ServerRates.Current;
@@ -903,6 +907,8 @@ internal sealed partial class GameClientHandler
                 $"[quest] reward payment failed character={_character.Name} " +
                 $"quest={rewarded.QuestId} {ex.GetType().Name}: {ex.Message}");
         }
+
+        await PayGuildQuestRewardAsync(rewarded.QuestId, cancellationToken); // GUILD
 
         if (carried is not null)
         {
@@ -1073,6 +1079,7 @@ internal sealed partial class GameClientHandler
         {
             await SendQuestNpcMarksAsync(cancellationToken);
         }
+        await TryGrantQuestTitleAsync(rewarded.QuestId, cancellationToken); // TITLES: quest titles
         Console.WriteLine(
             $"[quest] handed in character={_character.Name} " +
             $"quest={rewarded.QuestId} rewardExp={rewardExperience} " +
@@ -1080,6 +1087,7 @@ internal sealed partial class GameClientHandler
             $"levelUps={levelUps.Count} " +
             $"next={followUp?.QuestId ?? 0} " +
             $"carried={_character.Quests.Count}");
+        await OnEventsNpcQuestHandedInAsync(rewarded.QuestId, cancellationToken); // EVENTSNPC
     }
 
     /// <summary>
@@ -1140,7 +1148,7 @@ internal sealed partial class GameClientHandler
     internal static bool IsWithinAcceptBand(int level, StarterQuestChain.Step step) =>
         step.RequiresExactLevel
             ? level == step.MinLevel
-            : step.IsMainLine || step.IsOneTimeUtility
+            : step.IsMainLine || step.IsOneTimeUtility || IsEventsNpcChainStep(step) // EVENTSNPC
             ? level >= step.MinLevel
             : level >= step.MinLevel - QuestLevelLead && IsWithinNineLevels(level, step);
 

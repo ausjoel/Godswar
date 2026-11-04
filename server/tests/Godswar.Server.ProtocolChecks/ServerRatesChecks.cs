@@ -140,9 +140,10 @@ internal static class ServerRatesChecks
         Check.True(
             ServerRateCatalog.Definitions
                 .Where(static definition =>
-                    definition.Kind == ServerRateKind.Multiplier)
+                    definition.Kind == ServerRateKind.Multiplier &&
+                    definition.Key != ServerRateKeys.WonderlandMedals)
                 .All(static definition => definition.DefaultValue == 1m),
-            "every multiplier defaults to 1 (stock behaviour)");
+            "every multiplier defaults to 1 (stock behaviour; RELEASE: the new Wonderland Medals multiplier defaults to 0 = off)");
         Check.Equal(
             2_000_000_000m,
             ServerRateCatalog.Get(ServerRateKeys.HolyBoxDailyLimit).DefaultValue,

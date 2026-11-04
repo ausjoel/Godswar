@@ -57,6 +57,10 @@ internal sealed record GameSessionContext(
     public Func<GameSessionContext, CancellationToken, Task>?
         RecordQuestPlayerKill { get; init; }
 
+    // PARTY (r02): queues a shared party kill for this session's own loop.
+    public Func<PartyKillShareFact, bool>?
+        ReceivePartyKillShare { get; init; }
+
     public string DisplayName => string.IsNullOrWhiteSpace(CharacterName)
         ? $"character:{CharacterId}"
         : CharacterName;

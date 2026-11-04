@@ -31,6 +31,9 @@ internal sealed partial class GameClientHandler
             "Athens_044" or "Sparta_044" => ByFunction(ClassShifterDialogue),
             "Athens_075" or "Sparta_075" => ByFunction(FortuneTellerDialogue),
             "Athens_091" or "Sparta_091" => ByFunction(CupidsShadowDialogue),
+            // MARRIAGE: Pan's Whelk Necklace, routed only while the marriage switch is on.
+            "Pans_Labyrinth_010" when Godswar.Server.Application.Characters.MarriagePolicy.IsEnabled() =>
+                ByFunction(PanNecklaceDialogue),
             "Athens_109" or "Sparta_109" => ByFunction(ApothecaryDialogue),
             "Athens_138" or "Sparta_138" => ByFunction(PlasticSurgeonDialogue),
             "Athens_140" or "Sparta_140" => ByFunction(MysteryMerchantDialogue),
@@ -58,6 +61,11 @@ internal sealed partial class GameClientHandler
             "Athens_080" or "Sparta_080" => ByFunction(FitnessTrainerDialogue),
             "Athens_081" or "Sparta_081" => ByFunction(FitnessTrainerDialogue),
             "Athens_082" or "Sparta_082" => ByFunction(FitnessTrainerDialogue),
+            // EVENTSNPC: trainers 1-5 and the Ancient Relics exist only while their event is on.
+            _ when Godswar.Server.Application.EventsNpc.EventsNpcPolicy.TrainerNumber(npc.NpcKey) is >= 1 and <= 5 =>
+                ByFunction(FitnessTrainerDialogue),
+            _ when Godswar.Server.Application.EventsNpc.EventsNpcPolicy.RelicNumber(npc.NpcKey) > 0 =>
+                ByFunction(AncientRelicsDialogue),
             "Athens_125" or "Sparta_125" => ByFunction(TrojanWarCoordinatorDialogue),
             // Captured on 2026-09-28. Sparta_115 owns function 66 and Sparta_124
             // function 67; the latter shares that number with Sparta_125 above,
@@ -80,6 +88,14 @@ internal sealed partial class GameClientHandler
                 ByFunction(BattlefieldAwarderDialogue),
             "Labyrinth_006" or "Labyrint2_006" => ByFunction(ZeusEnvoyDialogue),
             "WarField_003" or "WarField_008" => ByFunction(BattlefieldCrierDialogue),
+            // BATTLEFIELD: the Pindus Quartermasters and Fortune Altars (NpcFunWar.lua,
+            // function 3). They are not in the published map 38 roster; when they are
+            // placed (gm_npc_spawns, pindus-npcs-generated.sql) their clicks are
+            // answered by GameClientHandler.PindusSupply.cs.
+            "WarField_002" or "WarField_007" => ByFunction(PindusQuartermasterDialogue),
+            "WarField_005" or "WarField_010" or "WarField_011" or "WarField_012" or "WarField_013" or
+                "WarField_014" or "WarField_015" or "WarField_016" or "WarField_017" or "WarField_018" or
+                "WarField_019" or "WarField_020" => ByFunction(PindusFortuneAltarDialogue),
             _ => null
         };
 

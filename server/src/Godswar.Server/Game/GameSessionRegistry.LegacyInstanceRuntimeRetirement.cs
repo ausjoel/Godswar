@@ -33,6 +33,7 @@ internal sealed partial class GameSessionRegistry
         {
             ForgetAtlantisRun(createdDescriptor.InstanceId);
             ForgetHarborAttackRun(createdDescriptor.InstanceId);
+            ForgetTrainingGroundRun(createdDescriptor.InstanceId); // TRAINING
             return true;
         }
         if (drain.Status != WorldInstanceRuntimeDirectoryStatus.Draining ||
@@ -71,6 +72,7 @@ internal sealed partial class GameSessionRegistry
         {
             ForgetAtlantisRun(createdDescriptor.InstanceId);
             ForgetHarborAttackRun(createdDescriptor.InstanceId);
+            ForgetTrainingGroundRun(createdDescriptor.InstanceId); // TRAINING
         }
         return removed;
     }

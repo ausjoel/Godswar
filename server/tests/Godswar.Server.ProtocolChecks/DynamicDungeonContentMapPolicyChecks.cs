@@ -11,7 +11,7 @@ internal static class DynamicDungeonContentMapPolicyChecks
 
     public static Task RunAsync()
     {
-        byte[] dungeonMaps = [200, 204, 205, 207, 208, 209];
+        byte[] dungeonMaps = [200, 204, 205, 207, 208, 209, 210]; // TRAINING: 210 is the Training Ground
         foreach (var mapId in dungeonMaps)
         {
             Check.True(
@@ -35,7 +35,7 @@ internal static class DynamicDungeonContentMapPolicyChecks
                 $"authoritative egress accepts dynamic dungeon {mapId}");
         }
 
-        foreach (var mapId in new[] { -1, 0, 1, 199, 201, 203, 206, 210 })
+        foreach (var mapId in new[] { -1, 0, 1, 199, 201, 203, 206, 211 })
         {
             Check.True(
                 !DynamicDungeonContentMapPolicy.IsDynamicDungeonMap(mapId),

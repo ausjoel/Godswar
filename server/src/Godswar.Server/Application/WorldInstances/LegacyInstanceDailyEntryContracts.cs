@@ -27,6 +27,7 @@ internal static class LegacyInstanceDailyEntryPolicy
         InstanceCallerEntryKind.Wonderland => null,
         // 港湾遇袭 has no paid retry at all.
         InstanceCallerEntryKind.HarborAttack => 0,
+        InstanceCallerEntryKind.TrainingGround => 0, // TRAINING: IGG acid=166, no paid entry
         _ => throw new ArgumentOutOfRangeException(nameof(instanceKind))
     };
 
@@ -39,6 +40,7 @@ internal static class LegacyInstanceDailyEntryPolicy
         InstanceCallerEntryKind instanceKind) => instanceKind switch
     {
         InstanceCallerEntryKind.HarborAttack => 1,
+        InstanceCallerEntryKind.TrainingGround => 1, // TRAINING: IGG acid=166, one a day
         _ => DefaultFreeEntryLimit
     };
 

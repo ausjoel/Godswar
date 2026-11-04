@@ -20,6 +20,16 @@ internal static partial class Program
 
     public static async Task<int> Main(string[] args)
     {
+        // RELEASE: these feature switches are opt-in (=1) in the release build; the checks exercise the
+        // features with them on, as their builders did. Set before any type reads them (static readonly).
+        foreach (var name in new[] { "GODSWAR_PET_MERCHANT_STEED", "GODSWAR_FORGE_GEM_COMPOUND",
+                     "GODSWAR_FORGE_EQUIP_COMPOUND", "GODSWAR_AMETHYST_PICK" })
+        {
+            if (Environment.GetEnvironmentVariable(name) is null)
+            {
+                Environment.SetEnvironmentVariable(name, "1");
+            }
+        }
         if (args.Length == 1 && args[0] == "--schema-metadata")
         {
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new
@@ -42,6 +52,10 @@ internal static partial class Program
             (MoneyBagChecks.CheckName, MoneyBagChecks.RunAsync),
             (ProgressItemChecks.CheckName, ProgressItemChecks.RunAsync),
             (GoldBoxDialChecks.CheckName, GoldBoxDialChecks.RunAsync),
+            (ClassChangeChecks.CheckName, ClassChangeChecks.RunAsync),
+            (EconomyMountChecks.CheckName, EconomyMountChecks.RunAsync), // ECONOMY r11
+            (MarriageChecks.CheckName, MarriageChecks.RunAsync),
+            (ArenaFeatureChecks.CheckName, ArenaFeatureChecks.RunAsync), // ARENA
             (GmMallChecks.CheckName, GmMallChecks.RunAsync),
             (MallOverrideChecks.CheckName, MallOverrideChecks.RunAsync),
             (NpcBattlefieldTeleportChecks.CheckName, NpcBattlefieldTeleportChecks.RunAsync),
@@ -50,6 +64,7 @@ internal static partial class Program
             (PotionHandlerChecks.CheckName, PotionHandlerChecks.RunAsync),
             (CachedVitalsProjectionChecks.CheckName, CachedVitalsProjectionChecks.RunAsync),
             (TitleGrantCapabilityChecks.CheckName, TitleGrantCapabilityChecks.RunAsync),
+            (TitleFortuneChecks.CheckName, TitleFortuneChecks.RunAsync), // TITLES
             (BuffAdminChecks.CheckName, BuffAdminChecks.RunAsync),
             (PvpBasicAttackRuntimeChecks.BuffInspectionCheckName, PvpBasicAttackRuntimeChecks.RunBuffInspectionAsync),
             (CharacterNameChecks.ProtocolName, CharacterNameChecks.RunProtocolAsync),
@@ -59,6 +74,7 @@ internal static partial class Program
             (PostgresPetDurableCommandIntegrationChecks.ProgressItemCheckName, PostgresPetDurableCommandIntegrationChecks.RunProgressItemsAsync),
             (MonsterOverrideChecks.CheckName, MonsterOverrideChecks.RunAsync),
             (GmNpcDialogueChecks.CheckName, GmNpcDialogueChecks.RunAsync),
+            (VillagersChecks.CheckName, VillagersChecks.RunAsync), // VILLAGERS
             (CursedLandContentChecks.CheckName, CursedLandContentChecks.RunAsync),
             (QuestActorContentChecks.CheckName, QuestActorContentChecks.RunAsync),
             .. CoreRuntimeCheckCatalog.All,
@@ -92,13 +108,21 @@ internal static partial class Program
             (ProfessionEventDropChecks.EventDropCheckName, ProfessionEventDropChecks.RunEventDropsAsync), // PROF q07
             (ProfessionEventDropChecks.BlueprintCheckName, ProfessionEventDropChecks.RunBlueprintsAsync), // PROF q09
             (ProfessionEventDropChecks.SigilCheckName, ProfessionEventDropChecks.RunSigilAsync), // PROF q06
+            (GuildStoneChanceChecks.CheckName, GuildStoneChanceChecks.RunAsync), // GUILDSTONE
             (ServerNextChecks.PotionCheckName, ServerNextChecks.RunPotionsAsync), // NEXT potions
             (ServerNextChecks.ExpiryCheckName, ServerNextChecks.RunExpiryAsync), // NEXT expiry
             (ServerNextChecks.MedalCheckName, ServerNextChecks.RunMedalAsync), // NEXT b06
+            (EconomyMedalChecks.CheckName, EconomyMedalChecks.RunAsync), // ECONOMY r10
             (OperatorAuthorityChecks.CheckName, OperatorAuthorityChecks.RunAsync),
             (Round2Checks.CheckName, Round2Checks.RunAsync), // ROUND2
             (SpyInvasionChecks.CheckName, SpyInvasionChecks.RunAsync), // SPIES
+            (PartyKillShareChecks.CheckName, PartyKillShareChecks.RunAsync), // PARTY (r02)
+            (EconomyMentorChecks.CheckName, EconomyMentorChecks.RunAsync), // ECONOMY mentor
+            (EventBoardChecks.CheckName, EventBoardChecks.RunAsync), // EVENTSBOARD
             (LelantineFarmRoundChecks.CheckName, LelantineFarmRoundChecks.RunAsync),
+            (PlayerTradeChecks.CheckName, PlayerTradeChecks.RunAsync), // TRADE
+            (BattlefieldRewardChecks.CheckName, BattlefieldRewardChecks.RunAsync), // BATTLEFIELD
+            (WildPetCaptureChecks.CheckName, WildPetCaptureChecks.RunAsync), // petcapture
             (
                 PlayerExperienceSealingChecks.CheckName,
                 PlayerExperienceSealingChecks.RunAsync),
@@ -178,6 +202,7 @@ internal static partial class Program
             (GuildListProtocolChecks.CheckName, GuildListProtocolChecks.RunAsync),
             (GuildProfileTitleChecks.CheckName, GuildProfileTitleChecks.RunAsync),
             (GuildApplicationNoticeChecks.CheckName, GuildApplicationNoticeChecks.RunAsync),
+            (GuildRulesChecks.CheckName, GuildRulesChecks.RunAsync), // GUILD
             ("Native status-effect sync layout", CheckPlayerStatusEffectsAsync),
             ("Post-enter UI-ready bootstrap gate", CheckPostEnterBootstrapGateAsync),
             ("Captured accepted-quest replay exclusion", CheckCapturedAcceptedQuestReplayExclusionAsync),
@@ -203,6 +228,7 @@ internal static partial class Program
             ("PostgreSQL developer clear-bag scope and audit", PostgresKitBagClearIntegrationChecks.RunAsync),
             ("Equipment forging packet protocol", ForgeProtocolChecks.RunAsync),
             ("Equipment forging rule catalog and calculator", EquipmentForgeCatalogChecks.RunAsync),
+            (ForgeCompoundChecks.CheckName, ForgeCompoundChecks.RunAsync), // FORGEGEMS
             ("Atomic equipment-forge persistence", ForgeTransactionChecks.RunAsync),
             ("PostgreSQL equipment-forge race and preservation", PostgresForgeIntegrationChecks.RunAsync),
             ("Gear-enhancement material catalog and planner", GearEnhancementStateChecks.RunAsync),
@@ -231,6 +257,7 @@ internal static partial class Program
             .. MedusaCheckCatalog.All,
             (FactionCrierHandlerChecks.CheckName, FactionCrierHandlerChecks.RunAsync),
             (FactionCrierProjectionChecks.CheckName, FactionCrierProjectionChecks.RunAsync),
+            (EventsNpcChecks.CheckName, EventsNpcChecks.RunAsync), // EVENTSNPC
             (
                 CompactItemClassAttributeChecks.CheckName,
                 CompactItemClassAttributeChecks.RunAsync),

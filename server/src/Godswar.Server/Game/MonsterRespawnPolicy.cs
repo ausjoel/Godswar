@@ -49,6 +49,15 @@ internal static class MonsterRespawnPolicyRules
             intervals[(Godswar.Server.Domain.World.Content.LelantineFarmProtocol.MapId, elite)] = TimeSpan.FromMinutes(2);
         intervals[(Godswar.Server.Domain.World.Content.LelantineFarmProtocol.MapId, "B_boss_wolf_006")] =
             TimeSpan.FromMinutes(45);
+        // BATTLEFIELD: the Pindus Dragon (map 38) returns 5 minutes after it is brought down (IGG guide acid=123).
+        intervals[(Godswar.Server.Application.WorldInstances.BattlefieldRewardPolicy.PindusMapId,
+            Godswar.Server.Application.WorldInstances.BattlefieldRewardPolicy.PindusDragonTemplateKey)] =
+            TimeSpan.FromMinutes(5);
+        // TRAINING: Training Ground elites appear once per run (normals keep the ordinary delay).
+        foreach (var elite in Godswar.Server.Application.WorldInstances.TrainingGroundPolicy.Templates.Values
+                     .Where(static template => template.IsElite))
+            intervals[(Godswar.Server.Application.WorldInstances.TrainingGroundPolicy.MapId, elite.TemplateKey)] =
+                Godswar.Server.Application.WorldInstances.TrainingGroundPolicy.EliteRespawnInterval;
         return intervals;
     }
 
@@ -110,6 +119,13 @@ internal static class MonsterRespawnPolicyRules
                 mapId,
                 templateKey,
                 ordinaryRespawnInterval);
+        }
+
+        // petcapture: wild baby pets wait their own interval, only while the switch is on.
+        if (Godswar.Server.Application.WorldInstances.WildPetCapturePolicy.TryGetRespawnInterval(
+                mapId, templateKey, out var wildPetInterval))
+        {
+            return wildPetInterval;
         }
 
         return AuthoredRespawnIntervals.TryGetValue(

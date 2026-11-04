@@ -43,6 +43,11 @@ internal sealed partial class GameClientHandler
         {
             kind = new(LelantineFarmDogPolicy.EggItemId, dogTier, PetCaptureContext.LelantineDog);
         }
+        else if (WildPetCapturePolicy.Enabled &&
+            WildPetCapturePolicy.TryGetEgg(character.CurrentMap, candidate.Definition.TemplateKey, out var wildEgg))
+        {
+            kind = new(wildEgg, MedusaEncounterDifficulty.Normal, PetCaptureContext.WildBaby);
+        }
         else
         {
             return false;

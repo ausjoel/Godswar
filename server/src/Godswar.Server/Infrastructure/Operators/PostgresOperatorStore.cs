@@ -970,6 +970,8 @@ internal static class OperatorRuntime
             await store.EnsureAsync(cancellationToken);
             OperatorControls.Store = store;
             Godswar.Server.Infrastructure.Characters.CharacterIdentityRuntime.Initialize(connectionString);
+            Godswar.Server.Infrastructure.Characters.CharacterClassChangeRuntime.Initialize(connectionString); // CLASSCHANGE
+            Godswar.Server.Infrastructure.Characters.MarriageRuntime.Initialize(connectionString); // MARRIAGE
             Console.WriteLine("[operator] commands ready (operator_log ensured)");
         }
         catch (Exception error) when (error is not OperationCanceledException)

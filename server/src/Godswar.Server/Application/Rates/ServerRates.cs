@@ -44,9 +44,23 @@ internal static class ServerRateKeys
     public const string EventExperience = "exp.events";
     public const string PetMonsterExperience = "pet.exp_monster";
     public const string ZodiacEnergy = "zodiac.energy";
+    // TITLES: Title Expert / Fortune Teller switches, the Fortune Teller's gold price and the
+    // Lucky Day bonus (Application/Titles/TitleExpertPolicy.cs, Application/Zodiac/FortuneTellerPolicy.cs).
+    public const string TitleExpertEnabled = "npc.title_expert";
+    public const string FortuneTellerEnabled = "npc.fortune_teller";
+    public const string FortuneTellerGold = "npc.fortune_teller_gold";
+    public const string ZodiacLuckyDayBonus = "zodiac.lucky_day_bonus";
     public const string AtlantisHardPoints = "instance.atlantis_hardpoints";
     public const string MedusaHonor = "instance.medusa_honor";
     public const string FarmKillPoints = "instance.farm_points";
+    // ECONOMY r10: Wonderland island-clear Medals (1 = IGG guide table, 0 = off).
+    public const string WonderlandMedals = "instance.wonderland_medals";
+    // INSTANCES: entry switches for the instances that are still being built.
+    public const string HarborAttackEntry = "instance.harbor_attack_entry";
+    public const string TrainingGroundEntry = "instance.training_ground_entry";
+    public const string HarborAttackRestartRefund = "instance.harbor_attack_restart_refund";
+    // BAY2: Bay Under Attack completion EXP, percent of one level at full clearance (GENERATED).
+    public const string HarborAttackExperiencePercent = "instance.harbor_attack_exp_pct";
     public const string MovementSpeed = "move.speed";
     public const string DropChance = "drop.chance";
     public const string DropQuantity = "drop.quantity";
@@ -64,6 +78,11 @@ internal static class ServerRateKeys
     public const string HolyBoxPerStoreMaximum = "holybox.per_store_max";
     public const string HolyBoxCapacity = "holybox.capacity";
     public const string HolyBoxMinimumLevel = "holybox.min_level";
+    // VILLAGERS: Festival Envoy and Village Leader switches (Application/Villagers).
+    public const string WeekendExperienceClaim = "event.weekend_exp_claim";
+    public const string WeekendExperienceAnyDay = "event.weekend_exp_any_day";
+    public const string FestivalGifts = "event.festival_gifts";
+    public const string VillageLeaderBooks = "npc.village_leader_books";
     // ROUND2: costs, item EXP, daily caps and event windows.
     public const string TalentUpgradeCost = "cost.talent";
     public const string ZodiacLevelCost = "cost.zodiac_level";
@@ -72,6 +91,7 @@ internal static class ServerRateKeys
     public const string FactionCrierTalent = "tp.faction_crier";
     public const string ExperiencePill = "exp.pill";
     public const string PetExperienceItems = "pet.exp_items";
+    public const string WildPetCapture = "pet.wild_capture"; // petcapture
     public const string LuckyGodsDaily = "cap.lucky_gods_daily";
     public const string WishingPoolDaily = "cap.wishing_pool_daily";
     public const string ZeusGiftsWeekday = "cap.zeus_gifts_weekday";
@@ -85,6 +105,32 @@ internal static class ServerRateKeys
     public const string WonderlandCloseHour = "event.wonderland_close_hour";
     public const string ZeusStoneAnyDay = "event.zeus_stone_any_day";
     public const string SpyInvasion = "event.spy_invasion";
+    // CLASSCHANGE: the Class Shifter's switch and its free-level limit.
+    public const string ClassChangeEnabled = "npc.class_change";
+    public const string ClassChangeFreeLevel = "npc.class_change_free_level";
+    // PARTY (r02): kill EXP and kill-quest sharing inside a party.
+    public const string PartyKillShare = "party.kill_share";
+    public const string PartyKillShareCells = "party.kill_share_cells";
+    public const string PlayerTrade = "trade.player"; // TRADE
+    public const string PlayerStalls = "trade.stalls"; // TRADE
+    // BATTLEFIELD: the shared Battlefield Awarder claim flow and Pindus / Ni Mini scoring.
+    public const string BattlefieldAwarder = "battlefield.awarder";
+    public const string BattlefieldScoring = "battlefield.scoring";
+    public const string BattlefieldClaimHours = "battlefield.claim_hours";
+    public const string BattlefieldTitleDays = "battlefield.title_days";
+    public const string BattlefieldReputation = "battlefield.reputation";
+    public const string BattlefieldPindusKillPoints = "battlefield.pindus_kill_points";
+    public const string BattlefieldNiMiniIggTimes = "battlefield.nimini_igg_times";
+    // BATTLEFIELD2: Pindus at the IGG times, the 60-200 level band, and Awarder lines showing the paid amounts.
+    public const string BattlefieldPindusIggTimes = "battlefield.pindus_igg_times";
+    public const string BattlefieldPindusBand = "battlefield.pindus_band";
+    public const string BattlefieldShowPaidAmounts = "battlefield.show_paid_amounts";
+    // MARRIAGE: Cupid / Cupid's Shadow switch and prices (Application/Characters/MarriagePolicy.cs).
+    public const string MarriageEnabled = "npc.marriage";
+    public const string MarriageNecklaceRequired = "npc.marriage_necklace";
+    public const string MarriageEngagementSilver = "npc.marriage_engage_silver";
+    public const string MarriageBookingGold = "npc.marriage_booking_gold";
+    public const string EventBoard = "event.board"; // EVENTSBOARD
 }
 
 internal static class ServerRateCatalog
@@ -97,12 +143,19 @@ internal static class ServerRateCatalog
     public const string MoneyCategory = "Money";
     public const string ForgeCategory = "Forging";
     public const string HolyBoxCategory = "Holy Box (Master Vestment Forger)";
+    public const string VillagersCategory = "Festival Envoy and Village Leader"; // VILLAGERS
     public const string CostCategory = "Upgrade costs"; // ROUND2
     public const string DailyCategory = "Daily and weekly limits"; // ROUND2
     public const string EventCategory = "Event times"; // ROUND2
+    public const string NpcServiceCategory = "NPC services"; // CLASSCHANGE
+    public const string PartyCategory = "Party"; // PARTY (r02)
+    public const string TradeCategory = "Player trade and stalls"; // TRADE
+    public const string BattlefieldCategory = "Battlefields"; // BATTLEFIELD
+    public const string MarriageCategory = "Marriage"; // MARRIAGE
 
     public static IReadOnlyList<ServerRateDefinition> Definitions { get; } =
     [
+        .. Godswar.Server.Application.Guilds.GuildRateKeys.Definitions, // GUILD
         Multiplier(
             ServerRateKeys.MonsterExperience, CharacterCategory, 10,
             "Monster kill EXP", 0m, 1_000_000m, // ROUND2: max
@@ -153,6 +206,34 @@ internal static class ServerRateCatalog
             "per tick for the first 3 hours of each realm day, 1 hour of " +
             "compensation after a missed day). Still capped by the storage " +
             "limit of the character's zodiac level."),
+        // TITLES: off by default, so shipping the binary changes nothing.
+        Absolute(
+            ServerRateKeys.ZodiacLuckyDayBonus, ZodiacCategory, 20,
+            "Zodiac Lucky Day EXP bonus", "%", 5m, 0m, 100m, 1m,
+            "Application/Zodiac/FortuneTellerPolicy.cs ApplyLuckyBonus",
+            "Extra EXP and Talent EXP from monster kills while a Fortune Teller " +
+            "Lucky Day is active (24 hours). Retail: 5. Only used while " +
+            "npc.fortune_teller is 1."),
+        Absolute(
+            ServerRateKeys.TitleExpertEnabled, "NPC services", 30,
+            "Title Expert grants titles", "0/1", 0m, 0m, 1m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.TitlesFortune.cs",
+            "1 = the Title Expert (Athens/Sparta) grants leveling and attribute " +
+            "titles and quest titles are granted on hand-in (IGG Title System). " +
+            "0 = menu only (same as leaving GODSWAR_TITLE_EXPERT unset)."),
+        Absolute(
+            ServerRateKeys.FortuneTellerEnabled, "NPC services", 40,
+            "Fortune Teller works", "0/1", 0m, 0m, 1m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.TitlesFortune.cs",
+            "1 = the Fortune Teller changes the zodiac sign (1 free per month) " +
+            "and draws Lucky Days (1 free per week, +EXP for 24 hours). 0 = menu " +
+            "only (same as leaving GODSWAR_FORTUNE_TELLER unset)."),
+        Absolute(
+            ServerRateKeys.FortuneTellerGold, "NPC services", 50,
+            "Fortune Teller gold price", "Gold", 230m, 0m, 1_000_000m, 1m,
+            "Application/Zodiac/FortuneTellerPolicy.cs",
+            "Gold for an extra sign change or an extra Lucky Day. The client's " +
+            "buttons say 230 Gold (the GodsArena wiki says 345)."),
         Multiplier(
             ServerRateKeys.AtlantisHardPoints, InstanceCategory, 10,
             "Atlantis honour (HardPoints)", 0m, 10_000m, // ROUND2: max
@@ -172,6 +253,57 @@ internal static class ServerRateCatalog
             "Game/GameClientHandler.LelantineFarmKills.cs",
             "Points a Lelantine Farm kill scores (1 normal, 10 elite, 1,000 " +
             "Cerberus). Egg donations are not changed."),
+        // ECONOMY r10. RELEASE: default 0 (off) instead of the Multiplier helper's 1,
+        // and sort order 45 (40 is Bay Under Attack entry).
+        new ServerRateDefinition(
+            ServerRateKeys.WonderlandMedals, InstanceCategory,
+            "Wonderland Medals per island", "x", ServerRateKind.Multiplier,
+            0m, 0m, 100m, 0.05m, 45,
+            "Application/WorldInstances/WonderlandMedalPolicy.cs",
+            "Medals (Point Exchanger balance) paid to every finisher when a " +
+            "Wonderland island clears: 50, 130, 80, 90, 100, 110, 120, 570 by " +
+            "island (IGG guide boss table, 1,250 a full run) times this value. " +
+            "0 = off (release default); 1 = the guide table."),
+        // INSTANCES: 0 = closed, so nobody spends a daily entry on an instance
+        // that is not finished. The Instance Caller answers its pages with the
+        // client's own "remaining today is 0" line plus a note.
+        // BAY2: Bay Under Attack is built (the admin 2026-11-03 round 2): OPEN by default.
+        Absolute(
+            ServerRateKeys.HarborAttackEntry, InstanceCategory, 40,
+            "Bay Under Attack entry open", "0/1", 1m, 0m, 1m, 1m,
+            "Game/GameClientHandler.InstanceCaller.cs (Instance Caller page 16 / 230)",
+            "1 = the Instance Caller lets a party of level 50-90 into Bay Under " +
+            "Attack (maps 208/209; default). 0 = the page refuses before any " +
+            "daily entry is used."),
+        Absolute(
+            ServerRateKeys.TrainingGroundEntry, InstanceCategory, 50,
+            "Training Ground entry open", "0/1", 0m, 0m, 1m, 1m,
+            "Game/GameClientHandler.InstanceCaller.cs (Instance Caller pages 13, 17 / 231)",
+            "1 = the Instance Caller's Trials of Hercules page (231) opens " +
+            "the Training Ground (map 210 run, 300 points, 30 min, 1 a day; " +
+            "needs training-spawns.sql). 0 = pages 13/17/231 refuse."),
+        Absolute(
+            ServerRateKeys.HarborAttackRestartRefund, InstanceCategory, 60,
+            "Bay Under Attack restart refund", "0/1", 1m, 0m, 1m, 1m,
+            "Infrastructure/PostgresApplicationDataRuntime.cs (start-up)",
+            "PROJECT RULE (not retail for this instance; extends the wiki's " +
+            "rollback list, which leaves Bay Under Attack out). 1 = at " +
+            "start-up, every Bay Under Attack run that a server stop or crash " +
+            "interrupted, and that Christina's kill had not completed, gives " +
+            "all its members their daily entry back (runs from the last 36 " +
+            "hours, a generated window; default since BAY2, the admin 2026-11-03). " +
+            "A run that paid its completion EXP is never refunded. 0 = no refund."),
+        // BAY2: GENERATED completion EXP (the guide gives no amount).
+        Absolute(
+            ServerRateKeys.HarborAttackExperiencePercent, InstanceCategory, 65,
+            "Bay Under Attack completion EXP (% of a level)", "%", 100m, 0m, 1_000m, 5m,
+            "Game/GameSessionRegistry.HarborAttackRewards.cs (run end)",
+            "GENERATED. Each member still inside when the run ends gets clearance " +
+            "x this percent of the EXP his level needs for the next level " +
+            "(100 = a full clear is worth one level). Level 200 gets none. " +
+            "Read when the run ends."),
+        // VILLAGERS: own category, so the ROUND2 event-category count is unchanged.
+        .. Application.Villagers.VillagersRateDefinitions.All,
         Multiplier(
             ServerRateKeys.DropChance, DropCategory, 10,
             "Drop chance", 0m, 1_000_000m, // ROUND2: max
@@ -256,6 +388,7 @@ internal static class ServerRateCatalog
             "(Asia/Singapore midnight). An active battle_pass entitlement " +
             "still bypasses it. The client's counter display saturates at " +
             "214,748,364; the server enforces the exact value."),
+        .. Godswar.Server.Application.EventsNpc.EventsNpcRates.Definitions, // EVENTSNPC
         Absolute(
             ServerRateKeys.HolyBoxPerStoreMaximum, HolyBoxCategory, 20,
             "Maximum EXP per Store action", "EXP", 400_000_000m, 1m,
@@ -322,6 +455,13 @@ internal static class ServerRateCatalog
             "Infrastructure/Pets/PostgresPetDurableCommandExecutor.ExperienceItem.cs",
             "EXP a Morning Dew (10130-10134, 10140-10144) gives the summoned " +
             "pet. Capped at the pet's 4,294,967,295 EXP field."),
+        Absolute( // petcapture
+            ServerRateKeys.WildPetCapture, PetCategory, 30,
+            "Wild baby pet capture", "0/1", 0m, 0m, 1m, 1m,
+            "Application/WorldInstances/WildPetCapturePolicy.cs",
+            "1 = baby Flower Pixies and Minotaurs on the suburbs, Parnitha, " +
+            "Nemea, Marathon, Peloponnese, Argolis and Megara can be caught " +
+            "with the Wooden..Gold tools and the Mysterious Tuck Net. 0 = off."),
         // ROUND2: daily and weekly limits.
         Absolute(
             ServerRateKeys.LuckyGodsDaily, DailyCategory, 10,
@@ -373,13 +513,16 @@ internal static class ServerRateCatalog
             "Pindus battlefield always open", "0/1", 0m, 0m, 1m, 1m,
             "Application/WorldInstances/BattlefieldSchedulePolicy.cs",
             "1 = the Pindus Mountains battlefield can be entered at any time. " +
-            "0 = stock windows (Wed/Fri 21:00, Sat/Sun 08:00 and 15:00/21:00)."),
+            "0 = the scheduled windows, which follow battlefield.pindus_igg_times " +
+            "(default: Wed 11:00, Sat 21:00, Sun 11:00; at 0 the stock Wed/Fri " +
+            "21:00, Sat/Sun 08:00 and 15:00/21:00)."),
         Absolute(
             ServerRateKeys.NiMiniAlwaysOpen, EventCategory, 20,
             "Ni Mini Valley always open", "0/1", 0m, 0m, 1m, 1m,
             "Application/WorldInstances/BattlefieldSchedulePolicy.cs",
-            "1 = Ni Mini Valley can be entered at any time. 0 = stock windows " +
-            "(Fri 19:00, Sat 07:00, Sun 19:00)."),
+            "1 = Ni Mini Valley can be entered at any time. 0 = the scheduled " +
+            "windows, which follow battlefield.nimini_igg_times (default: Fri " +
+            "21:45, Sun 19:00; at 0 the stock Fri 19:00, Sat 07:00, Sun 19:00)."),
         Absolute(
             ServerRateKeys.BattlefieldWindowMinutes, EventCategory, 30,
             "Battlefield entry window length", "minutes", 45m, 5m, 1440m, 5m,
@@ -407,12 +550,164 @@ internal static class ServerRateCatalog
             "1 = the spies in Athens and Sparta appear only Monday, " +
             "Wednesday and Saturday at 19:00 server time, in 5-minute waves " +
             "until 19:30. 0 = spies are always there."),
+        Absolute( // EVENTSBOARD
+            ServerRateKeys.EventBoard, EventCategory, 80,
+            "Event window lists", "0/1", 0m, 0m, 1m, 1m,
+            "Application/Events/EventBoard.cs",
+            "1 = fill the client's Event window (Today / This week) with the " +
+            "battlefield, Wonderland, spy and Zeus' Gift times. 0 = empty."),
         Absolute(
             ServerRateKeys.ZeusStoneAnyDay, EventCategory, 60,
             "Zeus' Gift stones any day", "0/1", 0m, 0m, 1m, 1m,
             "Application/ZeusGift/ZeusGiftPolicy.cs",
             "1 = praying stones can be handed in on any day, not only " +
-            "Monday-Friday (same as the GODSWAR_ZEUS_STONE_ANY_DAY switch).")
+            "Monday-Friday (same as the GODSWAR_ZEUS_STONE_ANY_DAY switch)."),
+        // CLASSCHANGE: off by default, so shipping the binary changes nothing.
+        Absolute(
+            ServerRateKeys.ClassChangeEnabled, NpcServiceCategory, 10,
+            "Class Shifter changes class", "0/1", 0m, 0m, 1m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.ClassChange.cs",
+            "1 = the Class Shifter (Athens/Sparta 141,-173) really changes the " +
+            "class: nothing may be worn, the old class's skills are sealed, the " +
+            "new class's start skills granted and old talents refunded as Talent " +
+            "Points; the player is logged out to reload. 0 = menu only (same as " +
+            "leaving GODSWAR_CLASS_CHANGE unset)."),
+        Absolute(
+            ServerRateKeys.ClassChangeFreeLevel, NpcServiceCategory, 20,
+            "Class change free up to level", "level", 100m, 0m, 200m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.ClassChange.cs",
+            "Characters at or below this level change class for free; above it " +
+            "one Class Shift Permit (item 4266) is used. Retail: 100."),
+        // PARTY (r02): the admin's rule - party members near the kill share the
+        // kill-quest credit, and the kill EXP is split equally between them.
+        Absolute(
+            ServerRateKeys.PartyKillShare, PartyCategory, 10,
+            "Party kill sharing", "0/1", 0m, 0m, 1m, 1m, // RELEASE: default off (the admin turns it on)
+            "Game/GameClientHandler.PartyKillShare.cs",
+            "1 = party members on the killer's map, alive and near the kill " +
+            "get kill-quest credit and an equal share of the kill EXP and " +
+            "Talent EXP (drops stay with the killer). 0 = only the killer, " +
+            "as before."),
+        Absolute(
+            ServerRateKeys.PartyKillShareCells, PartyCategory, 20,
+            "Party sharing range (32-unit cells)", "cells", 2m, 0m, 8m, 1m,
+            "Game/GameSessionRegistry.PartyKillShare.cs",
+            "How near the kill a party member must be, in 32-unit world " +
+            "cells around the cell the monster died in (2 = up to two cells " +
+            "away in each direction, about 64-95 units; inferred from the " +
+            "2008 server's IsTwoCellCross team-EXP test)."),
+        // TRADE: off by default. The frame layouts come from the client disassembly and a
+        // headless rig test, not from a real client (Development/build/trade/README.md).
+        Absolute(
+            ServerRateKeys.PlayerTrade, TradeCategory, 10,
+            "Player trade window", "0/1", 0m, 0m, 1m, 1m,
+            "Game/GameClientHandler.PlayerTrade.cs",
+            "1 = the Trade entry of the player menu opens the trade window on both sides " +
+            "(items and money, both press OK, one database transaction). 0 = off (stock)."),
+        Absolute(
+            ServerRateKeys.PlayerStalls, TradeCategory, 20,
+            "Player stalls", "0/1", 0m, 0m, 1m, 1m,
+            "Game/GameClientHandler.PlayerStall.cs",
+            "1 = players can set up a stall from the bag and others can browse and buy. " +
+            "0 = off (stock)."),
+        // BATTLEFIELD: own category so the round-2 category counts stay as they are.
+        Absolute(
+            ServerRateKeys.BattlefieldAwarder, BattlefieldCategory, 10,
+            "Battlefield Awarder pays rewards", "0/1", 0m, 0m, 1m, 1m, // RELEASE: default off
+            "Game/GameClientHandler.BattlefieldAwarder.cs",
+            "1 = the capital Battlefield Awarders (Athens_073/Sparta_073) answer " +
+            "claims for Pindus, Ni Mini and the Lelantine Farm with the rewards " +
+            "the round earned. 0 = the old fixed pages (nothing is paid)."),
+        Absolute(
+            ServerRateKeys.BattlefieldScoring, BattlefieldCategory, 20,
+            "Battlefield kill scoring", "0/1", 0m, 0m, 1m, 1m, // RELEASE: default off
+            "Game/GameClientHandler.BattlefieldScoring.cs",
+            "1 = enemy kills on Pindus (map 38) and Ni Mini (map 34) score " +
+            "inside an open window and entering records participation. 0 = no " +
+            "scoring (rounds already settled can still be claimed)."),
+        Absolute(
+            ServerRateKeys.BattlefieldClaimHours, BattlefieldCategory, 30,
+            "Battlefield reward claim time", "hours", 0m, 0m, 720m, 1m,
+            "Application/WorldInstances/BattlefieldRewardPolicy.cs",
+            "0 = rewards must be claimed on the day of the battle, until 23:55 " +
+            "server time (IGG guide). A number = that many hours after the " +
+            "battle ends (generated option)."),
+        Absolute(
+            ServerRateKeys.BattlefieldTitleDays, BattlefieldCategory, 40,
+            "Battlefield title days", "days", 7m, 0m, 365m, 1m,
+            "State/PostgresGameStore.BattlefieldRounds.cs",
+            "Days a Pindus or Ni Mini title lasts after it is claimed (IGG: Ni " +
+            "Mini one week; Pindus not stated, generated). 0 = permanent."),
+        Multiplier(
+            ServerRateKeys.BattlefieldReputation, BattlefieldCategory, 50,
+            "Battlefield Reputation", 0m, 100m,
+            "Game/GameClientHandler.BattlefieldAwarder.cs",
+            "Scales the Reputation the Awarder pays (Pindus 800/400, Ni Mini " +
+            "600/200). The client's own text still shows the stock amounts. " +
+            "EXP and Talent follow the Event NPC EXP & Talent rate."),
+        Absolute(
+            ServerRateKeys.BattlefieldPindusKillPoints, BattlefieldCategory, 60,
+            "Pindus points per enemy kill", "points", 5m, 0m, 1000m, 1m,
+            "Game/GameClientHandler.BattlefieldScoring.cs",
+            "Faction points for killing an enemy player on Pindus (IGG guide: " +
+            "5). The killer also gets 1 personal point (client text). Ni Mini " +
+            "always scores 1 per kill."),
+        Absolute(
+            ServerRateKeys.BattlefieldNiMiniIggTimes, BattlefieldCategory, 70,
+            "Ni Mini at the IGG times", "0/1", 0m, 0m, 1m, 1m, // RELEASE: default off (the admin named only Pindus times)
+            "Application/WorldInstances/BattlefieldSchedulePolicy.cs",
+            "1 = Ni Mini Valley opens Fridays 21:45-22:30 and Sundays " +
+            "19:00-19:45 server time (IGG guide). 0 = the stock reborn windows " +
+            "(Fri 19:00, Sat 07:00, Sun 19:00). Editor windows override both."),
+        // BATTLEFIELD2
+        Absolute(
+            ServerRateKeys.BattlefieldPindusIggTimes, BattlefieldCategory, 80,
+            "Pindus at the IGG times", "0/1", 1m, 0m, 1m, 1m,
+            "Application/WorldInstances/BattlefieldSchedulePolicy.cs",
+            "1 = Pindus opens Wednesdays 11:00-11:45, Saturdays 21:00-21:45 and " +
+            "Sundays 11:00-11:45 server time (IGG guide; the client's own " +
+            "transporter text says the same). 0 = the stock reborn windows (Wed/Fri " +
+            "21:00, Sat 08:00 and 15:00, Sun 08:00 and 21:00). Editor windows " +
+            "override both."),
+        Absolute(
+            ServerRateKeys.BattlefieldPindusBand, BattlefieldCategory, 90,
+            "Pindus level 60-200", "0/1", 1m, 0m, 1m, 1m,
+            "Game/GameClientHandler.BattlefieldTransporter.cs",
+            "1 = the Battlefield Transporter admits level 60-200 to Pindus (the admin " +
+            "2026-11-03; IGG says 60-130) and only that band scores there. 0 = " +
+            "the stock reborn band 31-120 and the stock refusal lines."),
+        Absolute(
+            ServerRateKeys.BattlefieldShowPaidAmounts, BattlefieldCategory, 100,
+            "Awarder shows paid amounts", "0/1", 0m, 0m, 1m, 1m, // RELEASE: default off
+            "Game/GameClientHandler.BattlefieldAwarder.cs",
+            "1 = the Pindus Awarder's EXP and Talent lines print what is paid " +
+            "(including the Event NPC EXP & Talent rate) where the client can. " +
+            "0 = the base x1 amounts."),
+        // MARRIAGE: off by default, so shipping the binary changes nothing.
+        Absolute(
+            ServerRateKeys.MarriageEnabled, MarriageCategory, 10,
+            "Cupid marriages and divorces", "0/1", 0m, 0m, 1m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.Marriage.cs",
+            "1 = Cupid, Cupid's Shadow and the Avatar of Pan run engagement, " +
+            "ceremony booking, the wedding, the gift and divorce. 0 = menu only " +
+            "(same as leaving GODSWAR_MARRIAGE unset). Run " +
+            "Development/build/marriage/migration.sql before turning it on."),
+        Absolute(
+            ServerRateKeys.MarriageNecklaceRequired, MarriageCategory, 20,
+            "Whelk Necklace needed to marry", "0/1", 1m, 0m, 1m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.Marriage.cs",
+            "1 = retail: booking needs the groom's Whelk Necklace (3934) and the " +
+            "ceremony one each. 0 = not needed (Pan's Labyrinth is closed)."),
+        Absolute(
+            ServerRateKeys.MarriageEngagementSilver, MarriageCategory, 30,
+            "Engagement price", "Silver", 9999m, 0m, 100000000m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.Marriage.cs",
+            "Silver the groom pays when the bride accepts. Retail: 9999."),
+        Absolute(
+            ServerRateKeys.MarriageBookingGold, MarriageCategory, 40,
+            "Wedding booking price", "Gold", 100m, 0m, 100000m, 1m,
+            "Game/ScriptedNpcDialogueCatalog.Marriage.cs",
+            "Gold the groom pays to book a ceremony hour. Retail: 100.")
     ];
 
     private static readonly FrozenDictionary<string, ServerRateDefinition>
@@ -666,6 +961,10 @@ internal sealed class ServerRatesSnapshot
 
     /// <summary>An absolute limit as a whole number.</summary>
     public long Absolute(string key) => (long)decimal.Truncate(Get(key));
+
+    // INSTANCES
+    public bool IsHarborAttackRestartRefundOn() =>
+        Absolute(ServerRateKeys.HarborAttackRestartRefund) == 1;
 }
 
 internal static class ServerRates

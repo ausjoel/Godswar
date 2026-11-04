@@ -88,6 +88,12 @@ internal sealed partial class GameClientHandler
 
         if (duty >= LordDuty)
         {
+            if (await TryTransferGuildLordshipAsync(
+                    guild, actorName, memberName, duty, cancellationToken))
+            {
+                return; // GUILD: Change Lord (guild.lord_rules)
+            }
+
             await RefuseGuildActionAsync(
                 "Transferring guild leadership is not implemented.",
                 "GuildDutyLordRefused",
@@ -203,7 +209,16 @@ internal sealed partial class GameClientHandler
         // has to be told too - their session is no longer in the guild once the
         // membership is gone, so it could not be found afterwards.
         var recipients = guild.Members.ToArray();
-        await _guilds.RemoveMemberAsync(target!.CharacterId, cancellationToken);
+        if (!await _guilds.RemoveMemberAsync(
+                target!.CharacterId, cancellationToken,
+                refuseLord: GuildLordRulesOn))
+        {
+            await RefuseGuildActionAsync( // GUILD review fix: became Lord meanwhile
+                "That member is now the Guild Lord and cannot be removed.",
+                "GuildMemberDelLordRefused",
+                cancellationToken);
+            return;
+        }
         var removed = PacketBuilder.GuildMemberRemoved(objectId, target.Name);
         foreach (var member in recipients)
         {

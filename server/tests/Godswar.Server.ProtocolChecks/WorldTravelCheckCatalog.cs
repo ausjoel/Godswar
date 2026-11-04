@@ -45,6 +45,12 @@ internal static class WorldTravelCheckCatalog
             InstanceCallerHandlerChecks.RunAtlantisRunAsync),
         (InstanceCallerHandlerChecks.HarborAttackCheckName,
             InstanceCallerHandlerChecks.RunHarborAttackAsync),
+        (InstanceCallerHandlerChecks.ClosedInstancesCheckName,
+            InstanceCallerHandlerChecks.RunClosedInstancesAsync),
+        (HarborAttackContentChecks.CheckName, HarborAttackContentChecks.RunAsync),
+        (HarborAttackCompletionRewardChecks.CheckName, HarborAttackCompletionRewardChecks.RunAsync), // BAY2
+        (HarborAttackCompletionRewardChecks.PostgresCheckName, HarborAttackCompletionRewardChecks.RunPostgresCheckAsync), // BAY2
+        (TrainingGroundChecks.CheckName, TrainingGroundChecks.RunAsync), // TRAINING
         ("Authoritative hidden live-map transfer", MapLiveTransferChecks.RunAsync),
         (MapLiveTransferChecks.MutationLifetimeCheckName,
             MapLiveTransferChecks.RunMutationLifetimeAsync),

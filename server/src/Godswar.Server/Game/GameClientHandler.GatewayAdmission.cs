@@ -44,6 +44,8 @@ internal sealed partial class GameClientHandler
             _session,
             PreparePveDerivedKillRewardAsync);
         _registry.RegisterQuestPlayerKillRecorder(_session, RecordQuestPlayerKillAsync);
+        _registry.RegisterPartyKillShareReceiver(_session, ReceivePartyKillShare); // PARTY (r02)
+        _registry.RegisterHarborAttackRewardProjector(_session, ProjectHarborAttackRewardAsync); // BAY2
         _registry.UpdateActivePetHealingRuntime(
             _session,
             _characterLoadSnapshot?.Pets ??

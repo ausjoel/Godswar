@@ -1,3 +1,4 @@
+using Godswar.Server.Application.WorldInstances;
 using Godswar.Server.Domain.World.Content;
 using Godswar.Server.Packets;
 
@@ -18,6 +19,11 @@ internal sealed partial class GameClientHandler
 
     private string? PendingInstanceEntryAuthorityFailure(PendingInstanceEntry pending)
     {
+        // INSTANCES: a switch closed after the Enter window opened still stops it.
+        if (pending.Destination?.Kind == InstanceCallerEntryKind.HarborAttack &&
+            !InstanceEntrySwitches.IsHarborAttackOpen) return "InstanceClosed";
+        if (pending.Destination?.Kind == InstanceCallerEntryKind.TrainingGround &&
+            !InstanceEntrySwitches.IsTrainingGroundOpen) return "TrainingGroundClosed"; // TRAINING
         if (_character is null || _character.CurrentHp <= 0) return "CallerNotAlive";
         if (!TryResolveMapNpc(pending.NpcId, out var npc)) return "CallerNpcUnavailable";
         if (!IsWithinInstanceCallerInteractionDistance(npc)) return "CallerOutOfRange";
@@ -58,6 +64,8 @@ internal sealed partial class GameClientHandler
 
     private static string EntryAuthorityMessage(string reason) => reason switch
     {
+        "InstanceClosed" => InstanceEntrySwitches.HarborAttackClosedNote, // INSTANCES
+        "TrainingGroundClosed" => InstanceEntrySwitches.TrainingGroundClosedNote, // TRAINING
         "CallerNotAlive" => "Revive before entering the instance, then speak to the Instance Caller again.",
         "CallerNpcUnavailable" or "CallerOutOfRange" =>
             "Stay within 12 units of the Instance Caller until you enter, then try again.",

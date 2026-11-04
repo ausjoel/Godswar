@@ -41,7 +41,8 @@ internal sealed partial class GameClientHandler
         if (!PetCaptureRequest.TryRead(packet, out var request) ||
             _account is null ||
             character is null ||
-            character.CurrentMap is not (200 or 205 or LelantineFarmProtocol.MapId) ||
+            (character.CurrentMap is not (200 or 205 or LelantineFarmProtocol.MapId) &&
+             !(WildPetCapturePolicy.Enabled && WildPetCapturePolicy.IsWildMap(character.CurrentMap))) ||
             !TryResolvePetCaptureTarget(
                 request,
                 out var target,
@@ -225,7 +226,8 @@ internal sealed partial class GameClientHandler
         var net = KitBagSlots.GetItem(character.KitBag, netSlot);
         if (net.Id is < WoodenToolItemId or > MysteriousTuckNetItemId || net.Stack <= 0 ||
             // The four ordinary tools work on the farm's dogs only; the Tuck Net keeps its old reach.
-            (net.Id != MysteriousTuckNetItemId && character.CurrentMap != LelantineFarmProtocol.MapId))
+            (net.Id != MysteriousTuckNetItemId && character.CurrentMap != LelantineFarmProtocol.MapId &&
+             !WildPetCapturePolicy.IsWildMap(character.CurrentMap)))
         {
             return false;
         }

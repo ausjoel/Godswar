@@ -181,9 +181,8 @@ internal sealed class MonsterLootContentSnapshot
 
             BitConverter.TryWriteBytes(input[16..], rule.LootIndex);
             SHA256.HashData(input, hash);
-            if (BitConverter.ToUInt32(hash) % 10_000 >= rates.MultiplyBasisPoints(
-                    Godswar.Server.Application.Rates.ServerRateKeys.DropChance,
-                    rule.ChanceBasisPoints))
+            if (BitConverter.ToUInt32(hash) % 10_000 >= LootFlatChanceItems.ThresholdBasisPoints( // GUILDSTONE
+                    rates, rule.ItemId, rule.ChanceBasisPoints))
             {
                 continue;
             }
@@ -193,10 +192,15 @@ internal sealed class MonsterLootContentSnapshot
             var quantity = checked(
                 rule.MinimumQuantity +
                 (int)(BitConverter.ToUInt32(hash[4..]) % range));
+            // BAY2: Bay Under Attack gear (profiles harbor_*) is one piece, never
+            // an identical pair under drop.quantity (live runs it at 2).
+            if (rule.RollProfile?.StartsWith("harbor_", StringComparison.Ordinal) != true)
+            {
             quantity = rates.Multiply( // RATES
                 Godswar.Server.Application.Rates.ServerRateKeys.DropQuantity,
                 quantity,
                 255);
+            }
             // ATTR: a rule without a roll profile keeps its fixed columns.
             var attributes = rule.Attributes;
             if (rule.RollProfile is not null &&

@@ -140,6 +140,11 @@ internal sealed partial class GameClientHandler
         }
 
         // 港湾遇袭 revives inside its own run for the same reason.
+        if (await TryHandleTrainingGroundReviveAsync(cancellationToken)) // TRAINING
+        {
+            return;
+        }
+
         if (await TryHandleHarborAttackReviveAsync(cancellationToken))
         {
             return;

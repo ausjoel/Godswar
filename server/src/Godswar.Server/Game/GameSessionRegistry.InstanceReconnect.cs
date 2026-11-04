@@ -141,6 +141,10 @@ internal sealed partial class GameSessionRegistry
         {
             yield return (instanceId, InstanceRunKind.Medusa);
         }
+        foreach (var instanceId in TrainingGroundRunIds) // TRAINING
+        {
+            yield return (instanceId, InstanceRunKind.TrainingGround);
+        }
     }
 
     /// <summary>
@@ -169,6 +173,7 @@ internal sealed partial class GameSessionRegistry
             InvokeWorldOwner(runtime, static map =>
                 map.TryGetMedusaOwnershipSnapshot(out var ownership) &&
                 ownership.Run.State == MedusaRunState.Active),
+        InstanceRunKind.TrainingGround => IsTrainingGroundReconnectActive(runtime.InstanceId), // TRAINING
         _ => false
     };
 
@@ -202,6 +207,8 @@ internal sealed partial class GameSessionRegistry
             _medusaLeaderUi.TryGetValue(runtime.InstanceId,
                 out var medusa) &&
             medusa.Roster.Any(entry => entry.CharacterId == characterId),
+        InstanceRunKind.TrainingGround => // TRAINING
+            IsTrainingGroundReconnectMember(runtime.InstanceId, characterId),
         _ => false
     };
 
@@ -230,6 +237,10 @@ internal sealed partial class GameSessionRegistry
             case DynamicDungeonContentMapPolicy.HarborAttackSecondMapId:
                 entranceX = InstanceCallerProtocol.HarborAttackArrivalX;
                 entranceZ = InstanceCallerProtocol.HarborAttackArrivalZ;
+                return true;
+            case DynamicDungeonContentMapPolicy.TrainingGroundMapId: // TRAINING
+                entranceX = InstanceCallerProtocol.HeraclesTrialArrivalX;
+                entranceZ = InstanceCallerProtocol.HeraclesTrialArrivalZ;
                 return true;
             case DynamicDungeonContentMapPolicy.MedusaIslandMapId:
             case DynamicDungeonContentMapPolicy.MedusaIslandAlternateMapId:

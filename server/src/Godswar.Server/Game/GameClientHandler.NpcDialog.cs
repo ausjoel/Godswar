@@ -246,6 +246,8 @@ internal sealed partial class GameClientHandler
             return;
         }
 
+        if (await TryHandleParnassusTransporterActionAsync(npc, dialogIndex, subId, args, cancellationToken)) return; // ARENA
+
         // The Zeus gift endpoints have no dialogue route: the installed client owns
         // the whole function in NpcFunZeus.lua and only needs the server to answer
         // its menu and selection traffic. Handled before route resolution so it
@@ -301,6 +303,8 @@ internal sealed partial class GameClientHandler
         {
             return;
         }
+
+        if (await TryHandleFestivalEnvoyActionAsync(npc, dialogIndex, subId, args, cancellationToken)) return; // VILLAGERS
 
         // ROUND2: the Festival Envoy's Weekend EXP claim (dialog 28, sub 5,
         // path "501") belongs to the captured capital service further down.

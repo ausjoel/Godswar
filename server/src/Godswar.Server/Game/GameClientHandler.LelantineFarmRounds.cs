@@ -71,6 +71,7 @@ internal sealed partial class GameClientHandler
                     if (_character is not null && TryCaptureCurrentPlayerOwnership(out _))
                     {
                         await PayFarmRoundRewardsAsync(cancellationToken);
+                        await PayTrainingGroundRewardsAsync(cancellationToken); // TRAINING
                         await GrantFarmToolsAsync(cancellationToken);
                     }
                 }

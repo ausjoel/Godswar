@@ -17,11 +17,11 @@ internal static partial class PacketBuilder
         "H4sIAAAAAAAEAJvAGq4eKMrAwMDMyLigjZFBhoeB4T8WwMjIwMhABOBn+v/fHYlPlKZRMApGwSgYBQwTYOUxCzu4PF7Ij7M8ZiXGPEZgeSyJzIfSi6hgbgAWc/dRwVwuLObup4K5GljMPUAFc39hMRdPvCUTay6J8Ua0udjibRSMglGACWDlMSO0PDZSpqx9LAvMfwp+CD5MkzEVzAW5D91cE2q4dyE7hrk2VDBXQB3Bh2mypYK5AYcxzbWjgrkTLjBjmGtPBXM3FHJjmDsKRsEowASw8piJhQdcHrMIUJb/mID578FkFjgfpsmMCuZiK9/MqWAutnLeggrmYivnc3G3N4k294MnE4a5yTQyN54K5l5ABANcUwKNzPXTp9zc90gqYcwIGpmbRCNzSwQpNxdbvT8KaAtg5TEzCye4PF4jRlk8qgHjEVkhjL2SCuZiG1dYRSNze8wpN/c/orkJ11RjQRtztexpY+4KKoQvNnMb1GmTzlipEG/YzB0Fo4AeAADTMbkL0BsAAA==";
 
     private static readonly Lazy<byte[]> PetMerchantCatalog = new(
-        () => InflateCatalog(
+        () => AppendPetMerchantSteed(InflateCatalog( // ECONOMY r11: + Greek Steed
             PetMerchantCatalogGzip,
             expectedLength: 9_968,
             expectedPacketCount: 7,
-            expectedCapturedNpcId: 5_459));
+            expectedCapturedNpcId: 5_459)));
 
     private static readonly Lazy<byte[]> SkillVendorCatalog = new(
         () => InflateCatalog(

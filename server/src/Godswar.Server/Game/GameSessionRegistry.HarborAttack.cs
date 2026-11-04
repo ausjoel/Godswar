@@ -91,6 +91,9 @@ internal sealed partial class GameSessionRegistry
             // with the party this run was registered for.
             BeginInstanceRunMembership(instanceId, [.. members.Select(ToRosterEntry)]);
             _harborAttackReservations[reservationId] = instanceId;
+            // INSTANCES: durable run record, so a server stop refunds the entry.
+            OpenHarborAttackLedger(reservationId, runtime, startedAt,
+                [.. members.Select(static member => member.CharacterId)]);
             return true;
         }
     }
@@ -215,9 +218,13 @@ internal sealed partial class GameSessionRegistry
                 return false;
             }
 
-            _harborAttackTerminations.TryAdd(
-                actor.WorldInstanceId,
-                DateTimeOffset.UtcNow);
+            if (_harborAttackTerminations.TryAdd(
+                    actor.WorldInstanceId,
+                    DateTimeOffset.UtcNow))
+            {
+                // INSTANCES: durable now, not at the next tick.
+                CloseHarborAttackLedger(admission.ReservationId, "terminated");
+            }
             Console.WriteLine(
                 "[harbor] leader termination instance=" +
                 $"{actor.WorldInstanceId} leader={actor.Character.Name}");
@@ -281,26 +288,43 @@ internal sealed partial class GameSessionRegistry
                     var terminated = _harborAttackTerminations.TryGetValue(
                         instanceId,
                         out var terminatedAt);
+                    // INSTANCES: Christina's death completes the run (IGG acid=201).
+                    if (!terminated)
+                    {
+                        DetectHarborAttackEndBossDeath(instanceId, runtime, now);
+                    }
+                    var completed = !terminated &&
+                        TryGetHarborAttackCompletion(instanceId, out terminatedAt);
+                    terminated |= completed;
                     if (expired || terminated)
                     {
+                        CloseHarborAttackLedger(admission.ReservationId,
+                            completed ? "completed" : terminated ? "terminated" : "deadline");
                         // A run that was ended or ran out of time enters the one
                         // shared terminal flow: the same four native frames, the
                         // same thirty-second countdown and the same clicker-only
                         // leave, and the rest are carried home when the thirty
                         // seconds expire.
                         var endStartedAt = terminated ? terminatedAt : admission.Deadline;
+                        // BAY2: freeze the clearance EXP once, settle it now (retried by later ticks).
+                        var rewardRun = FreezeHarborAttackReward(runtime, admission.ReservationId,
+                            admission.StartedAt, members,
+                            completed ? "completed" : terminated ? "terminated" : "deadline", endStartedAt);
                         var ending = BeginInstanceRunEnd(instanceId,
                             InstanceRunKind.HarborAttack, "HarborAttack",
                             runtime.MapId,
                             checked((ushort)HarborAttackClientSceneId(runtime.MapId)),
-                            admission.DailyLimit, 0, endStartedAt);
+                            admission.DailyLimit, HarborAttackScore(instanceId),
+                            endStartedAt);
                         if (members.Length != 0)
                         {
                             await PublishInstanceRunEndAsync(
                                 ending,
                                 [.. members.Select(ToInstanceRunEndMember)],
                                 now,
-                                settle: null,
+                                settle: rewardRun is { } run // BAY2
+                                    ? token => SettleHarborAttackRewardAsync(run, now, token)
+                                    : null,
                                 cancellationToken);
                         }
                         if (!IsInstanceRunEndWindowOpen(ending, now))
@@ -309,7 +333,7 @@ internal sealed partial class GameSessionRegistry
                                 runtime,
                                 admission,
                                 members,
-                                terminated ? "terminated" : "deadline",
+                                completed ? "completed" : terminated ? "terminated" : "deadline",
                                 endStartedAt,
                                 cancellationToken);
                         }
@@ -349,6 +373,8 @@ internal sealed partial class GameSessionRegistry
         }
         finally
         {
+            // BAY2: owed rewards are retried even after their run is gone.
+            await SettlePendingHarborAttackRewardsAsync(now, cancellationToken);
             Volatile.Write(ref _harborAttackWorldInFlight, 0);
         }
     }
@@ -373,10 +399,12 @@ internal sealed partial class GameSessionRegistry
         var roster = SnapshotInstanceRoster(
             runtime.InstanceId, InstanceRunKind.HarborAttack, now);
         var signature = InstanceRosterSignature(roster);
+        var score = HarborAttackScore(runtime.InstanceId); // INSTANCES
         var stamp = new HarborAttackUiStamp(
             runtime.InstanceId,
             remaining,
-            signature);
+            signature,
+            Score: score);
 
         foreach (var member in members)
         {
@@ -420,7 +448,7 @@ internal sealed partial class GameSessionRegistry
                 {
                     packets.Add(PacketBuilder.RepetitionInstanceMembers(roster));
                 }
-                packets.Add(PacketBuilder.RepetitionFightInfo(remaining, 0));
+                packets.Add(PacketBuilder.RepetitionFightInfo(remaining, score));
                 if (member.Session.TryAdmitExactBatch(packets, out var admitted))
                 {
                     _harborAttackUi[member.Session] = stamp;
@@ -465,7 +493,7 @@ internal sealed partial class GameSessionRegistry
             BeginInstanceRunEnd(runtime.InstanceId, InstanceRunKind.HarborAttack,
                 "HarborAttack", runtime.MapId,
                 checked((ushort)HarborAttackClientSceneId(runtime.MapId)),
-                admission.DailyLimit, 0, endedAt),
+                admission.DailyLimit, HarborAttackScore(runtime.InstanceId), endedAt),
             [.. members.Select(ToInstanceRunEndMember)],
             TransitionPartyMemberToAuthoritativeInstanceAsync,
             cancellationToken);
@@ -594,6 +622,7 @@ internal sealed partial class GameSessionRegistry
     {
         if (_harborAttackAdmissions.TryRemove(instanceId, out var admission))
         {
+            CloseHarborAttackLedger(admission.ReservationId, "abandoned");
             _harborAttackReservations.TryRemove(
                 admission.ReservationId,
                 out _);
@@ -603,6 +632,8 @@ internal sealed partial class GameSessionRegistry
         _harborAttackTerminations.TryRemove(instanceId, out _);
         _harborAttackRetirements.TryRemove(instanceId, out _);
         _harborAttackLastError.TryRemove(instanceId, out _);
+        ForgetHarborAttackProgress(instanceId); // INSTANCES
+        ForgetHarborAttackRewardRun(instanceId); // BAY2
         ForgetInstanceRunMembership(instanceId);
         foreach (var cached in _harborAttackUi
                      .Where(pair => pair.Value.InstanceId == instanceId))
@@ -662,6 +693,7 @@ internal sealed partial class GameSessionRegistry
         WorldInstanceId InstanceId,
         int RemainingSeconds,
         string Roster,
-        bool Ending = false);
+        bool Ending = false,
+        int Score = 0);
 }
 

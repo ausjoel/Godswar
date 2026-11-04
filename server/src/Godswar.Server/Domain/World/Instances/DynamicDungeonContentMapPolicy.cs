@@ -13,6 +13,8 @@ internal static class DynamicDungeonContentMapPolicy
     public const byte WonderlandMapId = 207;
     public const byte HarborAttackFirstMapId = 208;
     public const byte HarborAttackSecondMapId = 209;
+    // TRAINING: the Training Ground (Trials of Heracles) runs as exact instances too.
+    public const byte TrainingGroundMapId = 210;
 
     public static bool IsDynamicDungeonMap(int mapId) =>
         mapId is
@@ -21,7 +23,8 @@ internal static class DynamicDungeonContentMapPolicy
             AtlantisPortalMapId or
             WonderlandMapId or
             HarborAttackFirstMapId or
-            HarborAttackSecondMapId;
+            HarborAttackSecondMapId or
+            TrainingGroundMapId;
 
     public static bool IsHarborAttackMap(int mapId) =>
         mapId is HarborAttackFirstMapId or HarborAttackSecondMapId;
